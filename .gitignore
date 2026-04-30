@@ -1,0 +1,11 @@
+/.idea/
+/target/
+/out/
+/temp/
+*.class
+*.jar
+*.iml
+*.DS_Store
+.DS_Store
+/META-INF/
+src/test/resources/unithistreport/

@@ -1,18 +1,5 @@
 /*
- *    This file is part of UnitTH
- *
- *   UnitTH is free software: you can redistribute it and/or modify
- *   it under the terms of the GNU General Public License as published by
- *   the Free Software Foundation, either version 3 of the License, or
- *   (at your option) any later version.
- *
- *   UnitTH is distributed in the hope that it will be useful,
- *   but WITHOUT ANY WARRANTY; without even the implied warranty of
- *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *   GNU General Public License for more details.
- *
- *   You should have received a copy of the GNU General Public License
- *   along with UnitTH if not, see <http://www.gnu.org/licenses/>.
+ * MIT License - see LICENSE.txt
  */
 package unitth.jenkins;
 
@@ -42,7 +29,6 @@ import unitth.junit.TestRun;
  * extends the <code>DefaultHandler</code> and the methods needed for parsing
  * the XML in the Jenkins reports.
  * 
- * @author andnyb
  */
 public class JenkinsReportParser extends ReportParser {
 
@@ -302,28 +288,8 @@ public class JenkinsReportParser extends ReportParser {
 
 			// If there are no time stamps included in the report format the
 			// last modification time of the parsed file will be used.
-			/*
-			if (null == currentTestModule.getExecutionDate()) {
-				long fileLastModified = file.lastModified();
-				currentTestModule.setDate(fileLastModified);
-			}
-			*/
-			//addToPackage(currentTestModule); // Resolved inside the end element
-			/*
-			if (UnitTH.c_DBG) {
-				System.out.println("Module: " + currentTestModule.getName()
-						+ " added to run: " + currentTestModule.toString());
-			}
-			 */
-			// currentTestRun.addTestPackage(parsedTestPackage);
-			// currentTestModule = null;
 		} catch (UnitTHException jte) {
-			// If we end up here the test module will never be added
-			//System.err
-			//		.println("Test module never added to test run since the parsed file ("
-			//				+ file.getAbsolutePath() + ") contained errors.");
-			System.err
-			.println(jte.getMessage());
+			System.err.println(jte.getMessage());
 		}
 	}
 

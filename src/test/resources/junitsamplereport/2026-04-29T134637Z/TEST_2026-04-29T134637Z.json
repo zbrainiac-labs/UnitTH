@@ -1,0 +1,31 @@
+{
+  "reportFormat": "CTRF",
+  "specVersion": "0.0.1",
+  "results": {
+    "tool": {
+      "name": "sql_validation_v4"
+    },
+    "summary": {
+      "tests": 1,
+      "passed": 0,
+      "failed": 1,
+      "skipped": 0,
+      "pending": 0,
+      "other": 0,
+      "start": 0,
+      "stop": 4000
+    },
+    "tests": [
+      {
+        "name": "-- ============================================================",
+        "status": "failed",
+        "duration": 4000,
+        "message": "snow CLI failed",
+        "suite": "zbrainiac-labs_SyntheticRetailBank_SQLValidation"
+      }
+    ],
+    "environment": {
+      "projectName": "zbrainiac-labs_SyntheticRetailBank_SQLValidation"
+    }
+  }
+}

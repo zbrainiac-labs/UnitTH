@@ -1,0 +1,118 @@
+<testsuite name="zBrainiac_mother-of-all-Projects_SQLValidation" tests="16" failures="16" skipped="5" time="52.000">
+  <testcase name="# Test Name" classname="SQLValidation" time="0"><skipped message="Commented or empty"/></testcase>
+  <testcase name="# === DATA QUALITY - IOT_RAW ===" classname="SQLValidation" time="0"><skipped message="Commented or empty"/></testcase>
+  <testcase name="Row count in IOT_RAW table " classname="SQLValidation" time="3.000">
+    <failure message="snow CLI failed">╭─ Error ──────────────────────────────────────────────────────────────────────╮
+│ 002003 (02000): 01c3fcd4-0206-ac34-0002-162a06e1981a: SQL compilation error: │
+│ Schema 'DATAOPS.IOT_RAW_V001_124' does not exist or not authorized.          │
+╰──────────────────────────────────────────────────────────────────────────────╯</failure>
+  </testcase>
+  <testcase name="IOT_RAW has 13 columns " classname="SQLValidation" time="2.000">
+    <failure message="Expected '13', got '0'">
+SQL:  SELECT COUNT(*) AS result FROM {{DATABASE}}.INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = '{{SCHEMA}}' AND TABLE_NAME = 'IOT_RAW'; 
+Expected (raw):  13
+Actual (raw): 0
+Expected (trimmed): 13
+Actual (trimmed): 0
+    </failure>
+  </testcase>
+  <testcase name="No NULLs in SENSOR_ID " classname="SQLValidation" time="3.000">
+    <failure message="snow CLI failed">╭─ Error ──────────────────────────────────────────────────────────────────────╮
+│ 002003 (02000): 01c3fcd4-0206-ac48-0002-162a06e1c56a: SQL compilation error: │
+│ Schema 'DATAOPS.IOT_RAW_V001_124' does not exist or not authorized.          │
+╰──────────────────────────────────────────────────────────────────────────────╯</failure>
+  </testcase>
+  <testcase name="No NULLs in SENSOR_0 " classname="SQLValidation" time="3.000">
+    <failure message="snow CLI failed">╭─ Error ──────────────────────────────────────────────────────────────────────╮
+│ 002003 (02000): 01c3fcd4-0206-ac48-0002-162a06e1c56e: SQL compilation error: │
+│ Schema 'DATAOPS.IOT_RAW_V001_124' does not exist or not authorized.          │
+╰──────────────────────────────────────────────────────────────────────────────╯</failure>
+  </testcase>
+  <testcase name="SENSOR_ID range 1-101 " classname="SQLValidation" time="2.000">
+    <failure message="snow CLI failed">╭─ Error ──────────────────────────────────────────────────────────────────────╮
+│ 002003 (02000): 01c3fcd4-0206-ac48-0002-162a06e1c572: SQL compilation error: │
+│ Schema 'DATAOPS.IOT_RAW_V001_124' does not exist or not authorized.          │
+╰──────────────────────────────────────────────────────────────────────────────╯</failure>
+  </testcase>
+  <testcase name="SENSOR_0 range 0-1 " classname="SQLValidation" time="3.000">
+    <failure message="snow CLI failed">╭─ Error ──────────────────────────────────────────────────────────────────────╮
+│ 002003 (02000): 01c3fcd4-0206-aca6-0002-162a06e1489e: SQL compilation error: │
+│ Schema 'DATAOPS.IOT_RAW_V001_124' does not exist or not authorized.          │
+╰──────────────────────────────────────────────────────────────────────────────╯</failure>
+  </testcase>
+  <testcase name="SENSOR_1 range 20-30 " classname="SQLValidation" time="3.000">
+    <failure message="snow CLI failed">╭─ Error ──────────────────────────────────────────────────────────────────────╮
+│ 002003 (02000): 01c3fcd4-0206-aa81-0002-162a06e1d45e: SQL compilation error: │
+│ Schema 'DATAOPS.IOT_RAW_V001_124' does not exist or not authorized.          │
+╰──────────────────────────────────────────────────────────────────────────────╯</failure>
+  </testcase>
+  <testcase name="All 101 sensor IDs present " classname="SQLValidation" time="5.000">
+    <failure message="snow CLI failed">╭─ Error ──────────────────────────────────────────────────────────────────────╮
+│ 002003 (02000): 01c3fcd4-0206-ac34-0002-162a06e19822: SQL compilation error: │
+│ Schema 'DATAOPS.IOT_RAW_V001_124' does not exist or not authorized.          │
+╰──────────────────────────────────────────────────────────────────────────────╯</failure>
+  </testcase>
+  <testcase name="# === OBJECT EXISTENCE ===" classname="SQLValidation" time="0"><skipped message="Commented or empty"/></testcase>
+  <testcase name="IOT_RAW table exists " classname="SQLValidation" time="4.000">
+    <failure message="Expected 'true', got 'false'">
+SQL:  SELECT CASE WHEN COUNT(*) > 0 THEN 'true' ELSE 'false' END AS result FROM {{DATABASE}}.INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA = '{{SCHEMA}}' AND TABLE_NAME = 'IOT_RAW'; 
+Expected (raw):  true
+Actual (raw): false
+Expected (trimmed): true
+Actual (trimmed): false
+    </failure>
+  </testcase>
+  <testcase name="IOTI_RAW_VW_ALL_SENSORS view exists " classname="SQLValidation" time="4.000">
+    <failure message="Expected 'true', got 'false'">
+SQL:  SELECT CASE WHEN COUNT(*) > 0 THEN 'true' ELSE 'false' END AS result FROM {{DATABASE}}.INFORMATION_SCHEMA.VIEWS WHERE TABLE_SCHEMA = '{{SCHEMA}}' AND TABLE_NAME = 'IOTI_RAW_VW_ALL_SENSORS'; 
+Expected (raw):  true
+Actual (raw): false
+Expected (trimmed): true
+Actual (trimmed): false
+    </failure>
+  </testcase>
+  <testcase name="IOTI_RAW_VW_SENSOR_12 view exists " classname="SQLValidation" time="3.000">
+    <failure message="Expected 'true', got 'false'">
+SQL:  SELECT CASE WHEN COUNT(*) > 0 THEN 'true' ELSE 'false' END AS result FROM {{DATABASE}}.INFORMATION_SCHEMA.VIEWS WHERE TABLE_SCHEMA = '{{SCHEMA}}' AND TABLE_NAME = 'IOTI_RAW_VW_SENSOR_12'; 
+Expected (raw):  true
+Actual (raw): false
+Expected (trimmed): true
+Actual (trimmed): false
+    </failure>
+  </testcase>
+  <testcase name="IOTI_RAW_VW_SENSOR_102_AVG view exists " classname="SQLValidation" time="2.000">
+    <failure message="Expected 'true', got 'false'">
+SQL:  SELECT CASE WHEN COUNT(*) > 0 THEN 'true' ELSE 'false' END AS result FROM {{DATABASE}}.INFORMATION_SCHEMA.VIEWS WHERE TABLE_SCHEMA = '{{SCHEMA}}' AND TABLE_NAME = 'IOTI_RAW_VW_SENSOR_102_AVG'; 
+Expected (raw):  true
+Actual (raw): false
+Expected (trimmed): true
+Actual (trimmed): false
+    </failure>
+  </testcase>
+  <testcase name="# === VIEW VALIDATION ===" classname="SQLValidation" time="0"><skipped message="Commented or empty"/></testcase>
+  <testcase name="IOTI_RAW_VW_ALL_SENSORS returns rows " classname="SQLValidation" time="5.000">
+    <failure message="snow CLI failed">╭─ Error ──────────────────────────────────────────────────────────────────────╮
+│ 002003 (02000): 01c3fcd5-0206-ac34-0002-162a06e1982e: SQL compilation error: │
+│ Schema 'DATAOPS.IOT_RAW_V001_124' does not exist or not authorized.          │
+╰──────────────────────────────────────────────────────────────────────────────╯</failure>
+  </testcase>
+  <testcase name="IOTI_RAW_VW_SENSOR_12 filters correctly " classname="SQLValidation" time="2.000">
+    <failure message="snow CLI failed">╭─ Error ──────────────────────────────────────────────────────────────────────╮
+│ 002003 (02000): 01c3fcd5-0206-ac48-0002-162a06e1c58a: SQL compilation error: │
+│ Schema 'DATAOPS.IOT_RAW_V001_124' does not exist or not authorized.          │
+╰──────────────────────────────────────────────────────────────────────────────╯</failure>
+  </testcase>
+  <testcase name="IOTI_RAW_VW_ALL_SENSORS matches IOT_RAW count " classname="SQLValidation" time="5.000">
+    <failure message="snow CLI failed">╭─ Error ──────────────────────────────────────────────────────────────────────╮
+│ 002003 (02000): 01c3fcd5-0206-aa81-0002-162a06e1d46e: SQL compilation error: │
+│ Schema 'DATAOPS.IOT_RAW_V001_124' does not exist or not authorized.          │
+╰──────────────────────────────────────────────────────────────────────────────╯</failure>
+  </testcase>
+  <testcase name="# === STRUCTURE DEPLOYMENT ===" classname="SQLValidation" time="0"><skipped message="Commented or empty"/></testcase>
+  <testcase name="Warehouse recommendations loaded " classname="SQLValidation" time="3.000">
+    <failure message="snow CLI failed">╭─ Error ──────────────────────────────────────────────────────────────────────╮
+│ 002003 (02000): 01c3fcd5-0206-ac34-0002-162a06e19832: SQL compilation error: │
+│ Schema 'DATAOPS.IOT_RAW_V001_124' does not exist or not authorized.          │
+╰──────────────────────────────────────────────────────────────────────────────╯</failure>
+  </testcase>
+</testsuite>

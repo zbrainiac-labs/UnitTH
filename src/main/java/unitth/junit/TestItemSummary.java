@@ -1,24 +1,5 @@
 /*
- *    This file is part of UnitTH
- *
- *   UnitTH is free software: you can redistribute it and/or modify
- *   it under the terms of the GNU General Public License as published by
- *   the Free Software Foundation, either version 3 of the License, or
- *   (at your option) any later version.
- *
- *   UnitTH is distributed in the hope that it will be useful,
- *   but WITHOUT ANY WARRANTY; without even the implied warranty of
- *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *   GNU General Public License for more details.
- *
- *   You should have received a copy of the GNU General Public License
- *   along with UnitTH if not, see <http://www.gnu.org/licenses/>.
- *
- * =======================================================================
- * $Id: TestItemSummary.java,v 1.5 2010/05/14 15:21:39 andnyb Exp $
- * -----------------------------------------------------------------------
- * 
- * =======================================================================
+ * MIT License - see LICENSE.txt
  */
 
 package unitth.junit;
@@ -31,7 +12,6 @@ import unitth.core.TestItemUtils;
  * . It keeps statistics regarding multiple executions of a run to avoid having
  * to go through all the stored statistics of the parsed test runs.
  * 
- * @author andnyb
  */
 // TODO, VX.X Find a better solution than using an abstract class here since all
 // classes inheriting from TestItemSummary does not need all methods.

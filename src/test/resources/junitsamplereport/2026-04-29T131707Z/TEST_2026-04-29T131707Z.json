@@ -1,0 +1,115 @@
+{
+  "reportFormat": "CTRF",
+  "specVersion": "0.0.1",
+  "results": {
+    "tool": {
+      "name": "sql_validation_v4"
+    },
+    "summary": {
+      "tests": 13,
+      "passed": 0,
+      "failed": 10,
+      "skipped": 3,
+      "pending": 0,
+      "other": 0,
+      "start": 0,
+      "stop": 26000
+    },
+    "tests": [
+      {
+        "name": "# SQL Validation Tests for sharing_any_objects",
+        "status": "skipped",
+        "duration": 1,
+        "message": "Commented or empty",
+        "suite": "zbrainiac-labs_sharing_any_objects_SQLValidation"
+      },
+      {
+        "name": "# Format: description",
+        "status": "skipped",
+        "duration": 1,
+        "message": "Commented or empty",
+        "suite": "zbrainiac-labs_sharing_any_objects_SQLValidation"
+      },
+      {
+        "name": "#",
+        "status": "skipped",
+        "duration": 1,
+        "message": "Commented or empty",
+        "suite": "zbrainiac-labs_sharing_any_objects_SQLValidation"
+      },
+      {
+        "name": "ECOS_RAW_TB_STAGE_FILES_MT table exists ",
+        "status": "failed",
+        "duration": 3000,
+        "message": "Expected 'true', got 'false'",
+        "suite": "zbrainiac-labs_sharing_any_objects_SQLValidation"
+      },
+      {
+        "name": "ECOS_RAW_TB_CONSUMER_ROLE_MAPPING table exists ",
+        "status": "failed",
+        "duration": 3000,
+        "message": "Expected 'true', got 'false'",
+        "suite": "zbrainiac-labs_sharing_any_objects_SQLValidation"
+      },
+      {
+        "name": "ECOS_RAW_ST_DOC_MT stage exists ",
+        "status": "failed",
+        "duration": 2000,
+        "message": "Expected 'true', got 'false'",
+        "suite": "zbrainiac-labs_sharing_any_objects_SQLValidation"
+      },
+      {
+        "name": "ECOS_RAW_VW_STAGE_FILES_DOWNLOAD_MT view exists ",
+        "status": "failed",
+        "duration": 2000,
+        "message": "Expected 'true', got 'false'",
+        "suite": "zbrainiac-labs_sharing_any_objects_SQLValidation"
+      },
+      {
+        "name": "ECOS_RAW_TB_STAGE_FILES_MT has TENANT_ID column ",
+        "status": "failed",
+        "duration": 3000,
+        "message": "Expected 'true', got 'false'",
+        "suite": "zbrainiac-labs_sharing_any_objects_SQLValidation"
+      },
+      {
+        "name": "ECOS_RAW_TB_STAGE_FILES_MT has FILE_PATH column ",
+        "status": "failed",
+        "duration": 2000,
+        "message": "Expected 'true', got 'false'",
+        "suite": "zbrainiac-labs_sharing_any_objects_SQLValidation"
+      },
+      {
+        "name": "ECOS_RAW_TB_STAGE_FILES_MT has REFRESHED_AT column ",
+        "status": "failed",
+        "duration": 2000,
+        "message": "Expected 'true', got 'false'",
+        "suite": "zbrainiac-labs_sharing_any_objects_SQLValidation"
+      },
+      {
+        "name": "ECOS_RAW_TB_CONSUMER_ROLE_MAPPING has CONSUMER_ACCOUNT column ",
+        "status": "failed",
+        "duration": 2000,
+        "message": "Expected 'true', got 'false'",
+        "suite": "zbrainiac-labs_sharing_any_objects_SQLValidation"
+      },
+      {
+        "name": "ECOS_RAW_TB_STAGE_FILES_MT column count is 7 ",
+        "status": "failed",
+        "duration": 3000,
+        "message": "Expected 'true', got 'false'",
+        "suite": "zbrainiac-labs_sharing_any_objects_SQLValidation"
+      },
+      {
+        "name": "ECOS_RAW_TB_CONSUMER_ROLE_MAPPING column count is 3 ",
+        "status": "failed",
+        "duration": 4000,
+        "message": "Expected 'true', got 'false'",
+        "suite": "zbrainiac-labs_sharing_any_objects_SQLValidation"
+      }
+    ],
+    "environment": {
+      "projectName": "zbrainiac-labs_sharing_any_objects_SQLValidation"
+    }
+  }
+}

@@ -1,25 +1,5 @@
 /*
- *    This file is part of UnitTH
- *
- *   UnitTH is free software: you can redistribute it and/or modify
- *   it under the terms of the GNU General Public License as published by
- *   the Free Software Foundation, either version 3 of the License, or
- *   (at your option) any later version.
- *
- *   UnitTH is distributed in the hope that it will be useful,
- *   but WITHOUT ANY WARRANTY; without even the implied warranty of
- *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *   GNU General Public License for more details.
- *
- *   You should have received a copy of the GNU General Public License
- *   along with UnitTH if not, see <http://www.gnu.org/licenses/>.
- *
- * =======================================================================
- * $Id: RunHistory.java,v 1.15 2010/05/13 08:48:47 andnyb Exp $
- * -----------------------------------------------------------------------
- * 092012 : Nyberg : Added the logics to calculate relative run paths for
- *                 : the JUnit HTML report links to the calcStats loop.
- * =======================================================================
+ * MIT License - see LICENSE.txt
  */
 
 package unitth.junit;
@@ -45,7 +25,6 @@ import unitth.core.UnitTHException;
  * <p>
  * The class also has a set of counters for test history statistics.
  * 
- * @author andnyb
  */
 public class TestHistory extends RunHistory {
 

@@ -1,278 +1,424 @@
-/*
- *    This file is part of UnitTH
- *
- *   UnitTH is free software: you can redistribute it and/or modify
- *   it under the terms of the GNU General Public License as published by
- *   the Free Software Foundation, either version 3 of the License, or
- *   (at your option) any later version.
- *
- *   UnitTH is distributed in the hope that it will be useful,
- *   but WITHOUT ANY WARRANTY; without even the implied warranty of
- *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *   GNU General Public License for more details.
- *
- *   You should have received a copy of the GNU General Public License
- *   along with UnitTH if not, see <http://www.gnu.org/licenses/>.
- *
- * =======================================================================
- * $Id$
- * =======================================================================
+/**
+ * Modern Table Sort - Enhanced version with ES6+ features
+ * Based on the original TableSort implementation
  */
+class ModernTableSort {
+  constructor(options = {}) {
+    this.table = null;
+    this.columnHeaders = [];
+    this.tableRows = [];
+    this.currentColumn = 0; // Default sorting on first column
+    this.sortDirection = 'asc'; // 'asc' or 'desc'
+    this.previousColumn = null;
 
-/*
- * Based on various examples from 
- * http://www.terrill.ca/sorting/
- */
-function TableSort() {
-	
-	var table = new Object; // The table to be sorted
-	var columnNames = new Array;
-	var tableRows = new Array;
-	var columnIdx = new Object();
-	var columnTypeAbbr = new Object();
-	var N = 0;
-	
-	var previouslySortedColumn = '0'; // Default sorting on Run column.
-	
-	function get(index){
-		var ret = getCell(index).firstChild.nodeValue;
-		if (null==ret) {
-			ret = getCell(index).firstChild.text;
-		}
-		return ret; 
-	}
+    // Configuration options
+    this.options = {
+      enableSorting: true,
+      defaultColumn: 0,
+      sortableClass: 'sortable',
+      ascClass: 'sort-asc',
+      descClass: 'sort-desc',
+      unsortedClass: 'sort-none',
+      ...options
+    };
+  }
 
-	function getCell(index){
-		return tableRows[index].cells[columnIdx];
-	}
-		
-	/**
-	 * Main entry function. Registers the methods that gets invoked when clicking
-	 * the column headers.
-	 */
-	this.init = function(tableId) {
-    	table = document.getElementById(tableId);
-    	
-    	if (null==table) {
-        	return false;
-		}
-		
-        // get all the column names
-        columnNames = table.getElementsByTagName("th");
-        
-        // for each column name we register the sortOnColumn method.
-        for(var i=0; i<columnNames.length; i++) {
-        	columnNames[i].onclick = function() {
-				sortOnColumn(this);
-			}
-        }
-        return true;
-	};
-	
-	/**
-	 * Triggers the sorting of the rows based on the column that was clicked.
-	 *  
-	 * @param column The column object that was clicked on.
-	 */
-	function sortOnColumn(column) {
-		
-		columnIdx = column.cellIndex;
-    	columnTypeAbbr = column.abbr; // In case there is some special comparison needed.
-    	
-    	if (column.innerHTML == "SPREAD") {
-    		return;
-    	}
-    	
-    	tableRows = table.tBodies[0].getElementsByTagName("tr"); // Get rows from first TBODY in the table
-    	
-		// Check the sorting
-		if (previouslySortedColumn==columnIdx) {
-			if ('0'==columnIdx) {
-				column.className = (column.className != 'graphHeaderLeftAsc' ? 'graphHeaderLeftAsc' : 'graphHeaderLeftDesc' );
-			} else {
-				column.className = (column.className != 'graphHeaderAsc' ? 'graphHeaderAsc' : 'graphHeaderDesc' );	
-			}
-			reverseTable();
-		} else {
-			if ('0'==columnIdx) {
-				column.className = (column.className != 'graphHeaderLeftAsc' ? 'graphHeaderLeftAsc' : 'graphHeaderLeftDesc' );
-			} else {
-				column.className = (column.className != 'graphHeaderAsc' ? 'graphHeaderAsc' : 'graphHeaderDesc' );
-			}
-			
-			// Resetting the TD class
-			if ('0'==previouslySortedColumn) {
-				columnNames[previouslySortedColumn].className = 'graphHeaderLeft';
-			} else {
-				columnNames[previouslySortedColumn].className = 'graphHeader';
-			}
-			
-			// Works, but there is a need to sort the columns based on type.
-			N = (tableRows.length)/2;
-			if ((k = Math.floor(N/5)) > 7) {
-				for (var m=0; m<k; m++) {
-					isort(true, m, k);
-				}
-			}
-			if ((k = Math.floor(N/7)) > 7) {
-				for (var m=0; m<k; m++) {
-					isort(true, m, k);
-				}
-			}
-			for (k=7; k>0; k-=2) {
-				for (var m=0; m<k; m++) {
-					isort(true, m, k);
-				}
-			}
-		}
-		previouslySortedColumn = columnIdx;
+  /**
+   * Initialize table sorting functionality
+   * @param {string|HTMLElement} tableSelector - Table element or selector
+   * @returns {boolean} Success status
+   */
+  init(tableSelector) {
+    // Get table element
+    if (typeof tableSelector === 'string') {
+      this.table = document.getElementById(tableSelector) || document.querySelector(tableSelector);
+    } else if (tableSelector instanceof HTMLElement) {
+      this.table = tableSelector;
     }
 
-	
-	/**
-	 * Shell sort, check Wikipedia.
-	 * 
-	 * @param start Starting index
-	 * @param step Step size
-	 */
-	function isort(desc, start, step) {
-		
-		for(var j=start+step; j<N; j+=step) { 
-			
-			if (desc==true) {
+    if (!this.table) {
+      console.warn('TableSort: Table not found');
+      return false;
+    }
 
-				for(var i=j; i>=step; i-=step) {
-					var first = get(i*2);
-					var second = get(((i-step)*2));
+    // Get column headers
+    this.columnHeaders = Array.from(this.table.querySelectorAll('th'));
 
-					if ('input_text'==columnTypeAbbr) {
-						
-						var fIdx1 = first.indexOf('>');
-						if (fIdx1<0) {
-							fStripped = first;
-						} else {
-							var fIdx2 = first.lastIndexOf('<');
-							fStripped = first.substring((fIdx1+1),(fIdx2-1));
-						}
-						
-						var sIdx1 = second.indexOf('>');
-						if (sIdx1<0) {
-							sStripped = second;
-						} else {
-							var sIdx2 = second.lastIndexOf('<');
-							sStripped = second.substring((sIdx1+1),(sIdx2-1));
-						}
-						
-						if (fStripped>sStripped) {
-							exchange(i, (i-step));
-						}
-					} else if ('number'==columnTypeAbbr) {
-						var fa = parseFloat(first);
-						var sa = parseFloat(second);
-						if (isNaN(fa) ) {
-							fa = 0;
-						}
-						if (isNaN(sa) ) {
-							sa = 0;
-						}
-						if (fa>sa) {
-							exchange(i, (i-step));
-						}
-					} else if ('date'==columnTypeAbbr){
-						if (first>second) {
-							exchange(i, (i-step));
-						}
-					} else if ('float'==columnTypeAbbr){
-						
-						// Cannot find &nbsp; so we take the next char
-						var fIdx = first.indexOf('(')-1;
-						var sIdx = second.indexOf('(')-1;
-						
-						var fStripped = ""; 
-						var sStripped = ""
-						
-						if (fIdx<0) {
-							fStripped = first;
-						} else {
-							fStripped = first.substring(0, fIdx);
-						}
-						
-						if (sIdx<0) {
-							sStripped = second;
-						} else {
-							sStripped = second.substring(0, sIdx);
-						}
-						
-						var fa = parseFloat(fStripped);
-						var sa = parseFloat(sStripped);
-						
-						if (isNaN(fa) ) {
-							fa = 0;
-						}
-						if (isNaN(sa) ) {
-							sa = 0;
-						}
-						if (fa>sa) {
-							exchange(i, (i-step));
-						}
-					} else if ('percent'==columnTypeAbbr){
-						// Cannot find &nbsp; so we take the next char
-						var fIdx = first.indexOf('%');
-						var sIdx = second.indexOf('%');
-						var fStripped = first.substring(0, fIdx);
-						var sStripped = second.substring(0, sIdx);
-						
-						var fa = parseFloat(fStripped);
-						var sa = parseFloat(sStripped);
-						
-						if (isNaN(fa) ) {
-							fa = 0;
-						}
-						if (isNaN(sa) ) {
-							sa = 0;
-						}
-						if (fa>sa) {
-							exchange(i, (i-step));
-						}
-					}
-				}
-			}
-		} 
-	} 
+    if (this.columnHeaders.length === 0) {
+      console.warn('TableSort: No table headers found');
+      return false;
+    }
 
-	/**
-	 * Swaps two different rows.
-	 * 
-	 * @param i Index of the row to insert in front of row j.
-	 * @param j The row to be swapped with.
-	 */
-	function exchange(i, j) { 
-		i = i*2; // Switching only every second row.
-		j = j*2; // Switching only every second row.
-		if(i == j+1) { 
-			table.tBodies[0].insertBefore(tableRows[i], tableRows[j]); 
-		} else if(j == i+1) { 
-			table.tBodies[0].insertBefore(tableRows[j], tableRows[i]); 
-		} else { 
-			var tmpNode = table.tBodies[0].replaceChild(tableRows[i], tableRows[j]);
-			if(typeof(tableRows[i]) == "undefined") { 
-				table.tBodies[0].appendChild(tmpNode); 
-			} else { 
-				table.tBodies[0].insertBefore(tmpNode, tableRows[i]); 
-			} 
-		} 
-	}
-	
-	/**
-	 * Reversing the tables rows. Simply walks through them all and replaces the top one.
-	 */
-	function reverseTable() {
-		var topRow = tableRows[0];
-		for(var i = 2; i<tableRows.length; i+=2) {
-			table.tBodies[0].insertBefore(tableRows[i], topRow);
-			topRow = tableRows[0];
-		}
-	}
+    // Setup click handlers for sortable columns
+    this.setupColumnHandlers();
+
+    // Initial sort if specified
+    if (this.options.defaultColumn !== null) {
+      this.sortByColumn(this.options.defaultColumn, 'asc', false);
+    }
+
+    return true;
+  }
+
+  /**
+   * Setup click handlers for column headers
+   */
+  setupColumnHandlers() {
+    this.columnHeaders.forEach((header, index) => {
+      // Skip non-sortable columns
+      if (header.dataset.sortable === 'false' || header.textContent.trim() === 'SPREAD') {
+        return;
+      }
+
+      // Add sortable class
+      header.classList.add(this.options.sortableClass);
+      header.style.cursor = 'pointer';
+
+      // Add click handler
+      header.addEventListener('click', (e) => {
+        e.preventDefault();
+        this.handleColumnClick(index, header);
+      });
+
+      // Add initial unsorted class
+      header.classList.add(this.options.unsortedClass);
+    });
+  }
+
+  /**
+   * Handle column header click
+   * @param {number} columnIndex - Index of clicked column
+   * @param {HTMLElement} header - Header element
+   */
+  handleColumnClick(columnIndex, header) {
+    if (!this.options.enableSorting) return;
+
+    // Determine sort direction
+    let direction = 'asc';
+    if (this.currentColumn === columnIndex && this.sortDirection === 'asc') {
+      direction = 'desc';
+    }
+
+    this.sortByColumn(columnIndex, direction, true);
+  }
+
+  /**
+   * Sort table by specified column
+   * @param {number} columnIndex - Column to sort by
+   * @param {string} direction - Sort direction ('asc' or 'desc')
+   * @param {boolean} updateUI - Whether to update UI classes
+   */
+  sortByColumn(columnIndex, direction = 'asc', updateUI = true) {
+    // Get all data rows (exclude header)
+    const tbody = this.table.querySelector('tbody') || this.table;
+    this.tableRows = Array.from(tbody.querySelectorAll('tr'));
+
+    if (this.tableRows.length === 0) return;
+
+    // Get column type from header attribute
+    const header = this.columnHeaders[columnIndex];
+    const columnType = header?.dataset.type || this.detectColumnType(columnIndex);
+
+    // Sort rows
+    this.tableRows.sort((rowA, rowB) => {
+      const cellA = this.getCellValue(rowA, columnIndex);
+      const cellB = this.getCellValue(rowB, columnIndex);
+
+      let comparison = this.compareValues(cellA, cellB, columnType);
+
+      return direction === 'desc' ? -comparison : comparison;
+    });
+
+    // Update DOM
+    this.updateTableDOM();
+
+    // Update UI state
+    if (updateUI) {
+      this.updateColumnClasses(columnIndex, direction);
+    }
+
+    // Update internal state
+    this.previousColumn = this.currentColumn;
+    this.currentColumn = columnIndex;
+    this.sortDirection = direction;
+
+    // Dispatch custom event
+    this.dispatchSortEvent(columnIndex, direction);
+  }
+
+  /**
+   * Get cell value from row
+   * @param {HTMLElement} row - Table row
+   * @param {number} columnIndex - Column index
+   * @returns {string} Cell text content
+   */
+  getCellValue(row, columnIndex) {
+    const cell = row.cells[columnIndex];
+    if (!cell) return '';
+
+    // Get text content, handling nested elements
+    let value = cell.textContent || cell.innerText || '';
+
+    // Handle input elements
+    const input = cell.querySelector('input');
+    if (input) {
+      value = input.value || value;
+    }
+
+    return value.trim();
+  }
+
+  /**
+   * Detect column data type based on content
+   * @param {number} columnIndex - Column index
+   * @returns {string} Detected type
+   */
+  detectColumnType(columnIndex) {
+    const sampleSize = Math.min(5, this.tableRows.length);
+    const samples = [];
+
+    for (let i = 0; i < sampleSize; i++) {
+      const value = this.getCellValue(this.tableRows[i], columnIndex);
+      if (value) samples.push(value);
+    }
+
+    if (samples.length === 0) return 'string';
+
+    // Check for numbers
+    if (samples.every(val => !isNaN(parseFloat(val)) && isFinite(val))) {
+      return 'number';
+    }
+
+    // Check for percentages
+    if (samples.every(val => val.includes('%'))) {
+      return 'percent';
+    }
+
+    // Check for dates
+    if (samples.every(val => !isNaN(Date.parse(val)))) {
+      return 'date';
+    }
+
+    // Check for currency/floats with special formatting
+    if (samples.some(val => /[\(\)$?��]/.test(val))) {
+      return 'float';
+    }
+
+    return 'string';
+  }
+
+  /**
+   * Compare two values based on type
+   * @param {string} a - First value
+   * @param {string} b - Second value
+   * @param {string} type - Data type
+   * @returns {number} Comparison result
+   */
+  compareValues(a, b, type) {
+    if (a === b) return 0;
+
+    switch (type) {
+      case 'number':
+        return this.compareNumbers(a, b);
+
+      case 'percent':
+        return this.comparePercentages(a, b);
+
+      case 'date':
+        return this.compareDates(a, b);
+
+      case 'float':
+        return this.compareFloats(a, b);
+
+      case 'input_text':
+        return this.compareInputText(a, b);
+
+      default:
+        return this.compareStrings(a, b);
+    }
+  }
+
+  /**
+   * Compare numeric values
+   */
+  compareNumbers(a, b) {
+    const numA = parseFloat(a) || 0;
+    const numB = parseFloat(b) || 0;
+    return numA - numB;
+  }
+
+  /**
+   * Compare percentage values
+   */
+  comparePercentages(a, b) {
+    const numA = parseFloat(a.replace('%', '')) || 0;
+    const numB = parseFloat(b.replace('%', '')) || 0;
+    return numA - numB;
+  }
+
+  /**
+   * Compare date values
+   */
+  compareDates(a, b) {
+    const dateA = new Date(a);
+    const dateB = new Date(b);
+    return dateA - dateB;
+  }
+
+  /**
+   * Compare float values with special formatting
+   */
+  compareFloats(a, b) {
+    // Remove formatting characters and extract number
+    const cleanA = a.replace(/[^\d.-]/g, '');
+    const cleanB = b.replace(/[^\d.-]/g, '');
+    const numA = parseFloat(cleanA) || 0;
+    const numB = parseFloat(cleanB) || 0;
+    return numA - numB;
+  }
+
+  /**
+   * Compare input text (strip HTML tags)
+   */
+  compareInputText(a, b) {
+    const cleanA = a.replace(/<[^>]*>/g, '').trim();
+    const cleanB = b.replace(/<[^>]*>/g, '').trim();
+    return cleanA.localeCompare(cleanB);
+  }
+
+  /**
+   * Compare string values
+   */
+  compareStrings(a, b) {
+    return a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' });
+  }
+
+  /**
+   * Update table DOM with sorted rows
+   */
+  updateTableDOM() {
+    const tbody = this.table.querySelector('tbody') || this.table;
+
+    // Remove existing rows
+    this.tableRows.forEach(row => row.remove());
+
+    // Add sorted rows
+    this.tableRows.forEach(row => tbody.appendChild(row));
+  }
+
+  /**
+   * Update column header classes
+   * @param {number} activeColumn - Currently sorted column
+   * @param {string} direction - Sort direction
+   */
+  updateColumnClasses(activeColumn, direction) {
+    this.columnHeaders.forEach((header, index) => {
+      // Remove all sort classes
+      header.classList.remove(this.options.ascClass, this.options.descClass, this.options.unsortedClass);
+
+      if (index === activeColumn) {
+        // Add active sort class
+        const sortClass = direction === 'asc' ? this.options.ascClass : this.options.descClass;
+        header.classList.add(sortClass);
+      } else {
+        // Add unsorted class
+        header.classList.add(this.options.unsortedClass);
+      }
+    });
+  }
+
+  /**
+   * Dispatch custom sort event
+   * @param {number} columnIndex - Sorted column
+   * @param {string} direction - Sort direction
+   */
+  dispatchSortEvent(columnIndex, direction) {
+    const event = new CustomEvent('tableSorted', {
+      detail: {
+        column: columnIndex,
+        direction: direction,
+        header: this.columnHeaders[columnIndex],
+        table: this.table
+      }
+    });
+
+    this.table.dispatchEvent(event);
+  }
+
+  /**
+   * Get current sort state
+   * @returns {Object} Sort state
+   */
+  getSortState() {
+    return {
+      column: this.currentColumn,
+      direction: this.sortDirection,
+      columnName: this.columnHeaders[this.currentColumn]?.textContent || ''
+    };
+  }
+
+  /**
+   * Enable/disable sorting
+   * @param {boolean} enabled - Enable state
+   */
+  setSortingEnabled(enabled) {
+    this.options.enableSorting = enabled;
+
+    this.columnHeaders.forEach(header => {
+      header.style.cursor = enabled ? 'pointer' : 'default';
+      if (enabled) {
+        header.classList.add(this.options.sortableClass);
+      } else {
+        header.classList.remove(this.options.sortableClass);
+      }
+    });
+  }
+
+  /**
+   * Reset table to original order
+   */
+  reset() {
+    // This would require storing original order - implement if needed
+    console.warn('Reset functionality requires storing original row order');
+  }
+
+  /**
+   * Destroy the table sort instance
+   */
+  destroy() {
+    this.columnHeaders.forEach(header => {
+      header.replaceWith(header.cloneNode(true)); // Remove event listeners
+      header.classList.remove(
+        this.options.sortableClass,
+        this.options.ascClass,
+        this.options.descClass,
+        this.options.unsortedClass
+      );
+      header.style.cursor = '';
+    });
+
+    this.table = null;
+    this.columnHeaders = [];
+    this.tableRows = [];
+  }
+
+  /**
+   * Static method to create and initialize table sort
+   * @param {string|HTMLElement} tableSelector - Table selector or element
+   * @param {Object} options - Configuration options
+   * @returns {ModernTableSort} Table sort instance
+   */
+  static create(tableSelector, options = {}) {
+    const instance = new ModernTableSort(options);
+    instance.init(tableSelector);
+    return instance;
+  }
 }
 
-// EOS
+// For backward compatibility, create global TableSort function
+window.TableSort = function() {
+  const instance = new ModernTableSort();
+  return {
+    init: (tableId) => instance.init(tableId)
+  };
+};

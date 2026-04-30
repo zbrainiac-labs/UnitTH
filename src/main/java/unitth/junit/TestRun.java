@@ -1,25 +1,5 @@
 /*
- *    This file is part of UnitTH
- *
- *   UnitTH is free software: you can redistribute it and/or modify
- *   it under the terms of the GNU General Public License as published by
- *   the Free Software Foundation, either version 3 of the License, or
- *   (at your option) any later version.
- *
- *   UnitTH is distributed in the hope that it will be useful,
- *   but WITHOUT ANY WARRANTY; without even the implied warranty of
- *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *   GNU General Public License for more details.
- *
- *   You should have received a copy of the GNU General Public License
- *   along with UnitTH if not, see <http://www.gnu.org/licenses/>.
- *
- * =======================================================================
- * $Id: TestRun.java,v 1.11 2010/05/04 21:26:14 andnyb Exp $
- * -----------------------------------------------------------------------
- * 090212 : Nyberg : Moved create relative path method to here from the
- *                 : HtmlGne class.
- * =======================================================================
+ * MIT License - see LICENSE.txt
  */
 
 package unitth.junit;
@@ -39,7 +19,6 @@ import unitth.core.UnitTH;
  * This class implements the functionality for the test run object. It stores
  * all the statistics parsed for an executed run.
  * 
- * @author andnyb
  */
 public class TestRun extends TestItem implements Comparable<TestRun> {
 

@@ -1,31 +1,11 @@
 /*
- *    This file is part of UnitTH
- *
- *   UnitTH is free software: you can redistribute it and/or modify
- *   it under the terms of the GNU General Public License as published by
- *   the Free Software Foundation, either version 3 of the License, or
- *   (at your option) any later version.
- *
- *   UnitTH is distributed in the hope that it will be useful,
- *   but WITHOUT ANY WARRANTY; without even the implied warranty of
- *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *   GNU General Public License for more details.
- *
- *   You should have received a copy of the GNU General Public License
- *   along with UnitTH if not, see <http://www.gnu.org/licenses/>.
- *
- * =======================================================================
- * $Id: GraphCreator.java,v 1.7 2010/05/18 19:16:57 andnyb Exp $
- * -----------------------------------------------------------------------
- * 
- * =======================================================================
+ * MIT License - see LICENSE.txt
  */
 
 /**
  * This class is responsible for creating various graphs that 
  * will be displayed in the history report. 
  * 
- * @author Andreas Nyberg
  */
 package unitth.graphics.junit;
 
@@ -47,7 +27,6 @@ import unitth.junit.TestHistory;
  * <li>Execution times</li>
  * </ul>
  * 
- * @author Andreas Nyberg
  */
 public class GraphCreator {
 

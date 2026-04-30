@@ -1,0 +1,7 @@
+<testsuite name="zbrainiac-labs_UnknownRepo_SQLValidation" tests="2" failures="0" skipped="3" time="8.000">
+  <testcase name="# SQL Validation Tests for project-one" classname="SQLValidation" time="0"><skipped message="Commented or empty"/></testcase>
+  <testcase name="# Format: description" classname="SQLValidation" time="0"><skipped message="Commented or empty"/></testcase>
+  <testcase name="#" classname="SQLValidation" time="0"><skipped message="Commented or empty"/></testcase>
+  <testcase name="ONEO_RAW_TB_WH_SIZE_RECOMMENDATION table exists " classname="SQLValidation" time="5.000"/>
+  <testcase name="Warehouse recommendations loaded " classname="SQLValidation" time="3.000"/>
+</testsuite>

@@ -1,34 +1,17 @@
 /*
- *    This file is part of UnitTH
- *
- *   UnitTH is free software: you can redistribute it and/or modify
- *   it under the terms of the GNU General Public License as published by
- *   the Free Software Foundation, either version 3 of the License, or
- *   (at your option) any later version.
- *
- *   UnitTH is distributed in the hope that it will be useful,
- *   but WITHOUT ANY WARRANTY; without even the implied warranty of
- *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *   GNU General Public License for more details.
- *
- *   You should have received a copy of the GNU General Public License
- *   along with UnitTH if not, see <http://www.gnu.org/licenses/>.
- *
- * =======================================================================
- * $Id: ReportParser.java,v 1.7 2010/05/12 23:42:30 andnyb Exp $
- * -----------------------------------------------------------------------
- * 090208 | Nyberg  | Fixed the naming of test cases when a class name is
- *                  | not provided. Also fixed the setting of a test run
- *                  | time stamp from a file creation date when no test
- *                  | run time stamp has been provided.
- * =======================================================================
+ * MIT License - see LICENSE.txt
  */
 package unitth.junit;
 
 import java.io.File;
+import java.io.FileReader;
+import java.io.BufferedReader;
 import java.io.IOException;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.HashMap;
+import java.util.Locale;
 
 import javax.xml.parsers.SAXParser;
 import javax.xml.parsers.SAXParserFactory;
@@ -46,7 +29,6 @@ import unitth.jenkins.JenkinsReportParser;
  * extends the <code>DefaultHandler</code> and the methods needed for parsing
  * the XML in the JUnit reports.
  * 
- * @author andnyb
  */
 public class JUnitReportParser extends ReportParser {
 
@@ -288,6 +270,12 @@ public class JUnitReportParser extends ReportParser {
 		if (UnitTH.c_DBG) {
 			System.out.println("Parsing file: " + file.getName());
 		}
+
+		if (file.getName().endsWith(".json") || file.getName().endsWith(".JSON")) {
+			parseJsonFile(file);
+			return;
+		}
+
 		try {
 			parse(file);
 
@@ -300,8 +288,13 @@ public class JUnitReportParser extends ReportParser {
 			// If there are no time stamps included in the report format the
 			// last modification time of the parsed file will be used.
 			if (null == currentTestModule.getExecutionDate()) {
-				long fileLastModified = file.lastModified();
-				currentTestModule.setDate(fileLastModified);
+				String folderDate = parseFolderDate(file.getParentFile().getName());
+				if (folderDate != null) {
+					currentTestModule.setDate(folderDate);
+				} else {
+					long fileLastModified = file.lastModified();
+					currentTestModule.setDate(fileLastModified);
+				}
 			}
 
 			addToPackage(currentTestModule);
@@ -320,6 +313,187 @@ public class JUnitReportParser extends ReportParser {
 			System.err
 			.println(jte.getMessage());
 		}
+	}
+
+	private static String parseFolderDate(String folderName) {
+		SimpleDateFormat[] formats = {
+			new SimpleDateFormat("yyyy-MM-dd'T'HHmmss'Z'", Locale.US),
+			new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'", Locale.US),
+			new SimpleDateFormat("yyyy-MM-dd'T'HHmmss", Locale.US),
+			new SimpleDateFormat("yyyy-MM-dd_HHmmss", Locale.US)
+		};
+		for (SimpleDateFormat fmt : formats) {
+			fmt.setLenient(false);
+			try {
+				Date d = fmt.parse(folderName);
+				return new SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US).format(d);
+			} catch (Exception e) { /* try next */ }
+		}
+		return null;
+	}
+
+	private void parseJsonFile(File file) {
+		try {
+			StringBuilder sb = new StringBuilder();
+			try (BufferedReader br = new BufferedReader(new FileReader(file))) {
+				String line;
+				while ((line = br.readLine()) != null) {
+					sb.append(line);
+				}
+			}
+			String json = sb.toString();
+
+			String toolName = extractJsonString(json, "\"name\"", "tool");
+			int totalTests = extractJsonInt(json, "\"tests\"", "summary");
+			int passed = extractJsonInt(json, "\"passed\"", null);
+			int failed = extractJsonInt(json, "\"failed\"", null);
+			int skipped = extractJsonInt(json, "\"skipped\"", null);
+
+			String testsArray = extractTestsArray(json);
+			if (testsArray == null) {
+				System.err.println("No tests array found in: " + file.getName());
+				return;
+			}
+
+			currentTestModule = new TestModule();
+			currentTestModule.setName(toolName != null ? toolName : file.getName());
+			currentTestModule.setNoTestCases(String.valueOf(totalTests));
+			currentTestModule.setNoFailures(String.valueOf(failed));
+			currentTestModule.setNoErrors("0");
+			currentTestModule.setNoIgnored(String.valueOf(skipped));
+
+			String folderDate = parseFolderDate(file.getParentFile().getName());
+			if (folderDate != null) {
+				currentTestModule.setDate(folderDate);
+			} else {
+				currentTestModule.setDate(file.lastModified());
+			}
+
+			long totalDurationMs = 0;
+			ArrayList<String> testObjects = splitJsonObjects(testsArray);
+			for (String testJson : testObjects) {
+				TestCase tc = new TestCase();
+				String name = extractJsonString(testJson, "\"name\"", null);
+				String status = extractJsonString(testJson, "\"status\"", null);
+				long duration = extractJsonLong(testJson, "\"duration\"");
+				String suite = extractJsonString(testJson, "\"suite\"", null);
+
+				tc.setName(name != null ? name : "Unnamed");
+				tc.setClassName(suite != null ? suite : "SQLValidation");
+				tc.setModuleName(currentTestModule.getName());
+				tc.setExecutionTime(String.valueOf(duration / 1000.0));
+				totalDurationMs += duration;
+
+				if ("failed".equals(status)) {
+					tc.setVerdict(TestCaseVerdict.e_FAIL);
+				} else if ("skipped".equals(status)) {
+					tc.setVerdict(TestCaseVerdict.e_IGNORED);
+				} else {
+					tc.setVerdict(TestCaseVerdict.e_PASS);
+				}
+				currentTestModule.addTestCase(tc);
+			}
+
+			currentTestModule.setExecutionTime(String.valueOf(totalDurationMs / 1000.0));
+			currentTestModule.calcStats();
+			addToPackage(currentTestModule);
+			currentTestModule = null;
+		} catch (Exception e) {
+			System.err.println("Error parsing JSON file '" + file.getAbsolutePath() + "': " + e.getMessage());
+		}
+	}
+
+	private String extractJsonString(String json, String key, String context) {
+		int keyIdx = -1;
+		if (context != null) {
+			int ctxIdx = json.indexOf("\"" + context + "\"");
+			if (ctxIdx >= 0) {
+				keyIdx = json.indexOf(key, ctxIdx);
+			}
+		}
+		if (keyIdx < 0) keyIdx = json.indexOf(key);
+		if (keyIdx < 0) return null;
+		int colonIdx = json.indexOf(':', keyIdx + key.length());
+		if (colonIdx < 0) return null;
+		int startQuote = json.indexOf('"', colonIdx + 1);
+		if (startQuote < 0) return null;
+		int endQuote = json.indexOf('"', startQuote + 1);
+		while (endQuote > 0 && json.charAt(endQuote - 1) == '\\') {
+			endQuote = json.indexOf('"', endQuote + 1);
+		}
+		if (endQuote < 0) return null;
+		return json.substring(startQuote + 1, endQuote);
+	}
+
+	private int extractJsonInt(String json, String key, String context) {
+		int keyIdx = -1;
+		if (context != null) {
+			int ctxIdx = json.indexOf("\"" + context + "\"");
+			if (ctxIdx >= 0) keyIdx = json.indexOf(key, ctxIdx);
+		}
+		if (keyIdx < 0) keyIdx = json.indexOf(key);
+		if (keyIdx < 0) return 0;
+		int colonIdx = json.indexOf(':', keyIdx + key.length());
+		if (colonIdx < 0) return 0;
+		int start = colonIdx + 1;
+		while (start < json.length() && (json.charAt(start) == ' ' || json.charAt(start) == '\t')) start++;
+		int end = start;
+		while (end < json.length() && (Character.isDigit(json.charAt(end)) || json.charAt(end) == '-')) end++;
+		if (start == end) return 0;
+		try { return Integer.parseInt(json.substring(start, end)); } catch (NumberFormatException e) { return 0; }
+	}
+
+	private long extractJsonLong(String json, String key) {
+		int keyIdx = json.indexOf(key);
+		if (keyIdx < 0) return 0;
+		int colonIdx = json.indexOf(':', keyIdx + key.length());
+		if (colonIdx < 0) return 0;
+		int start = colonIdx + 1;
+		while (start < json.length() && (json.charAt(start) == ' ' || json.charAt(start) == '\t')) start++;
+		int end = start;
+		while (end < json.length() && (Character.isDigit(json.charAt(end)) || json.charAt(end) == '-')) end++;
+		if (start == end) return 0;
+		try { return Long.parseLong(json.substring(start, end)); } catch (NumberFormatException e) { return 0; }
+	}
+
+	private String extractTestsArray(String json) {
+		int idx = json.indexOf("\"tests\"");
+		while (idx >= 0) {
+			int colonIdx = json.indexOf(':', idx + 7);
+			if (colonIdx < 0) return null;
+			int bracketIdx = -1;
+			for (int i = colonIdx + 1; i < json.length(); i++) {
+				char c = json.charAt(i);
+				if (c == ' ' || c == '\t' || c == '\n' || c == '\r') continue;
+				if (c == '[') { bracketIdx = i; }
+				break;
+			}
+			if (bracketIdx >= 0) {
+				int depth = 1;
+				int end = bracketIdx + 1;
+				while (end < json.length() && depth > 0) {
+					char c = json.charAt(end);
+					if (c == '[') depth++;
+					else if (c == ']') depth--;
+					end++;
+				}
+				return json.substring(bracketIdx + 1, end - 1);
+			}
+			idx = json.indexOf("\"tests\"", idx + 7);
+		}
+		return null;
+	}
+
+	private ArrayList<String> splitJsonObjects(String arrayContent) {
+		ArrayList<String> objects = new ArrayList<>();
+		int depth = 0;
+		int start = -1;
+		for (int i = 0; i < arrayContent.length(); i++) {
+			char c = arrayContent.charAt(i);
+			if (c == '{') { if (depth == 0) start = i; depth++; }
+			else if (c == '}') { depth--; if (depth == 0 && start >= 0) { objects.add(arrayContent.substring(start, i + 1)); start = -1; } }
+		}
+		return objects;
 	}
 
 	public void addToPackage(TestModule tm) {

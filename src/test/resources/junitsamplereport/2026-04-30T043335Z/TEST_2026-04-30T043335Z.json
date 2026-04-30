@@ -1,0 +1,68 @@
+{
+  "reportFormat": "CTRF",
+  "specVersion": "0.0.1",
+  "results": {
+    "tool": {
+      "name": "sql_validation_v4"
+    },
+    "summary": {
+      "tests": 6,
+      "passed": 5,
+      "failed": 0,
+      "skipped": 1,
+      "pending": 0,
+      "other": 0,
+      "start": 1777523615000,
+      "stop": 1777523616000
+    },
+    "tests": [
+      {
+        "name": "Fake Passing Test",
+        "status": "passed",
+        "duration": 1,
+        "message": "",
+        "suite": "SQLValidation"
+      },
+      {
+        "name": "# Test Name",
+        "status": "skipped",
+        "duration": 0,
+        "message": "",
+        "suite": "SQLValidation"
+      },
+      {
+        "name": "Row count in IOT_RAW table ",
+        "status": "passed",
+        "duration": 1,
+        "message": "",
+        "suite": "SQLValidation"
+      },
+      {
+        "name": "Sensor 101 sum = 6 ",
+        "status": "passed",
+        "duration": 1,
+        "message": "",
+        "suite": "SQLValidation"
+      },
+      {
+        "name": "No NULLs in SENSOR_ID ",
+        "status": "passed",
+        "duration": 1,
+        "message": "",
+        "suite": "SQLValidation"
+      },
+      {
+        "name": "Sensor 101 avg = 0.10909091 ",
+        "status": "passed",
+        "duration": 1,
+        "message": "",
+        "suite": "SQLValidation"
+      }
+    ],
+    "environment": {
+      "projectName": "UnknownOwner_UnknownRepo_SQLValidation",
+      "database": "DATAOPS",
+      "schema": "IOT_RAW_V001"
+    }
+  }
+}

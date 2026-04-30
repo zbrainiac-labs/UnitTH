@@ -1,0 +1,23 @@
+<testsuite name="zBrainiac_mother-of-all-Projects_SQLValidation" tests="16" failures="0" skipped="5" time="63.000">
+  <testcase name="# Test Name" classname="SQLValidation" time="0"><skipped message="Commented or empty"/></testcase>
+  <testcase name="# === DATA QUALITY - IOT_RAW ===" classname="SQLValidation" time="0"><skipped message="Commented or empty"/></testcase>
+  <testcase name="Row count in IOT_RAW table " classname="SQLValidation" time="5.000"/>
+  <testcase name="IOT_RAW has 13 columns " classname="SQLValidation" time="4.000"/>
+  <testcase name="No NULLs in SENSOR_ID " classname="SQLValidation" time="3.000"/>
+  <testcase name="No NULLs in SENSOR_0 " classname="SQLValidation" time="3.000"/>
+  <testcase name="SENSOR_ID range 1-101 " classname="SQLValidation" time="4.000"/>
+  <testcase name="SENSOR_0 range 0-1 " classname="SQLValidation" time="4.000"/>
+  <testcase name="SENSOR_1 range 20-30 " classname="SQLValidation" time="4.000"/>
+  <testcase name="All 101 sensor IDs present " classname="SQLValidation" time="7.000"/>
+  <testcase name="# === OBJECT EXISTENCE ===" classname="SQLValidation" time="0"><skipped message="Commented or empty"/></testcase>
+  <testcase name="IOT_RAW table exists " classname="SQLValidation" time="4.000"/>
+  <testcase name="IOTI_RAW_VW_ALL_SENSORS view exists " classname="SQLValidation" time="4.000"/>
+  <testcase name="IOTI_RAW_VW_SENSOR_12 view exists " classname="SQLValidation" time="3.000"/>
+  <testcase name="IOTI_RAW_VW_SENSOR_102_AVG view exists " classname="SQLValidation" time="5.000"/>
+  <testcase name="# === VIEW VALIDATION ===" classname="SQLValidation" time="0"><skipped message="Commented or empty"/></testcase>
+  <testcase name="IOTI_RAW_VW_ALL_SENSORS returns rows " classname="SQLValidation" time="3.000"/>
+  <testcase name="IOTI_RAW_VW_SENSOR_12 filters correctly " classname="SQLValidation" time="5.000"/>
+  <testcase name="IOTI_RAW_VW_ALL_SENSORS matches IOT_RAW count " classname="SQLValidation" time="3.000"/>
+  <testcase name="# === STRUCTURE DEPLOYMENT ===" classname="SQLValidation" time="0"><skipped message="Commented or empty"/></testcase>
+  <testcase name="Warehouse recommendations loaded " classname="SQLValidation" time="2.000"/>
+</testsuite>
