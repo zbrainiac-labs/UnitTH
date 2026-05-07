@@ -54,11 +54,6 @@ public class CTRFReportParser extends ReportParser {
         }
         try {
             String json = readFile(file);
-            String toolName = extractString(json, "\"name\"", "tool");
-            int totalTests = extractInt(json, "\"tests\"");
-            int passed = extractInt(json, "\"passed\"");
-            int failed = extractInt(json, "\"failed\"");
-            int skipped = extractInt(json, "\"skipped\"");
 
             String testsArray = extractTestsArray(json);
             if (testsArray == null) {
@@ -66,56 +61,80 @@ public class CTRFReportParser extends ReportParser {
                 return;
             }
 
-            TestModule module = new TestModule();
-            module.setName(toolName != null ? toolName : file.getName());
-            module.setNoTestCases(String.valueOf(totalTests));
-            module.setNoFailures(String.valueOf(failed));
-            module.setNoErrors("0");
-            module.setNoIgnored(String.valueOf(skipped));
-
             String folderDate = parseFolderDate(file.getParentFile().getName());
-            if (folderDate != null) {
-                module.setDate(folderDate);
-            } else {
-                module.setDate(file.lastModified());
-            }
 
-            long totalDurationMs = 0;
+            java.util.LinkedHashMap<String, ArrayList<String>> suiteMap = new java.util.LinkedHashMap<>();
             ArrayList<String> testObjects = splitTestObjects(testsArray);
             for (String testJson : testObjects) {
-                TestCase tc = new TestCase();
-                String name = extractString(testJson, "\"name\"", null);
-                String status = extractString(testJson, "\"status\"", null);
-                long duration = extractLong(testJson, "\"duration\"");
                 String suite = extractString(testJson, "\"suite\"", null);
+                if (suite == null) suite = "SQLValidation";
+                suiteMap.computeIfAbsent(suite, k -> new ArrayList<>()).add(testJson);
+            }
 
-                tc.setName(name != null ? name : "Unnamed");
-                tc.setClassName(suite != null ? suite : "SQLValidation");
-                tc.setModuleName(module.getName());
-                tc.setExecutionTime(String.valueOf(duration / 1000.0));
-                totalDurationMs += duration;
+            for (java.util.Map.Entry<String, ArrayList<String>> entry : suiteMap.entrySet()) {
+                String suiteName = entry.getKey();
+                ArrayList<String> tests = entry.getValue();
 
-                if ("failed".equals(status)) {
-                    tc.setVerdict(TestCaseVerdict.e_FAIL);
-                } else if ("skipped".equals(status)) {
-                    tc.setVerdict(TestCaseVerdict.e_IGNORED);
-                } else {
-                    tc.setVerdict(TestCaseVerdict.e_PASS);
+                TestModule module = new TestModule();
+                int lastUnderscore = suiteName.lastIndexOf('_');
+                String moduleName = lastUnderscore > 0
+                        ? suiteName.substring(0, lastUnderscore) + "." + suiteName.substring(lastUnderscore + 1)
+                        : "default." + suiteName;
+                module.setName(moduleName);
+
+                int totalTests = 0;
+                int failCount = 0;
+                int skipCount = 0;
+                long totalDurationMs = 0;
+
+                for (String testJson : tests) {
+                    TestCase tc = new TestCase();
+                    String name = extractString(testJson, "\"name\"", null);
+                    String status = extractString(testJson, "\"status\"", null);
+                    long duration = extractLong(testJson, "\"duration\"");
+
+                    tc.setName(name != null ? name : "Unnamed");
+                    tc.setClassName(suiteName);
+                    tc.setModuleName(moduleName);
+                    tc.setExecutionTime(String.valueOf(duration / 1000.0));
+                    totalDurationMs += duration;
+                    totalTests++;
+
+                    if ("failed".equals(status)) {
+                        tc.setVerdict(TestCaseVerdict.e_FAIL);
+                        failCount++;
+                    } else if ("skipped".equals(status)) {
+                        tc.setVerdict(TestCaseVerdict.e_IGNORED);
+                        skipCount++;
+                    } else {
+                        tc.setVerdict(TestCaseVerdict.e_PASS);
+                    }
+                    module.addTestCase(tc);
                 }
-                module.addTestCase(tc);
-            }
 
-            module.setExecutionTime(String.valueOf(totalDurationMs / 1000.0));
-            module.calcStats();
+                module.setNoTestCases(String.valueOf(totalTests));
+                module.setNoFailures(String.valueOf(failCount));
+                module.setNoErrors("0");
+                module.setNoIgnored(String.valueOf(skipCount));
+                module.setExecutionTime(String.valueOf(totalDurationMs / 1000.0));
 
-            String packageName = module.getPackageName();
-            TestPackage tp = packages.get(packageName);
-            if (tp == null) {
-                tp = new TestPackage();
-                tp.setName(packageName);
-                packages.put(packageName, tp);
+                if (folderDate != null) {
+                    module.setDate(folderDate);
+                } else {
+                    module.setDate(file.lastModified());
+                }
+
+                module.calcStats();
+
+                String packageName = module.getPackageName();
+                TestPackage tp = packages.get(packageName);
+                if (tp == null) {
+                    tp = new TestPackage();
+                    tp.setName(packageName);
+                    packages.put(packageName, tp);
+                }
+                tp.addTestModule(module);
             }
-            tp.addTestModule(module);
 
         } catch (Exception e) {
             System.err.println("Error parsing CTRF file '" + file.getAbsolutePath() + "': " + e.getMessage());
