@@ -343,61 +343,75 @@ public class JUnitReportParser extends ReportParser {
 			}
 			String json = sb.toString();
 
-			String toolName = extractJsonString(json, "\"name\"", "tool");
-			int totalTests = extractJsonInt(json, "\"tests\"", "summary");
-			int passed = extractJsonInt(json, "\"passed\"", null);
-			int failed = extractJsonInt(json, "\"failed\"", null);
-			int skipped = extractJsonInt(json, "\"skipped\"", null);
-
 			String testsArray = extractTestsArray(json);
 			if (testsArray == null) {
 				System.err.println("No tests array found in: " + file.getName());
 				return;
 			}
 
-			currentTestModule = new TestModule();
-			currentTestModule.setName(toolName != null ? toolName : file.getName());
-			currentTestModule.setNoTestCases(String.valueOf(totalTests));
-			currentTestModule.setNoFailures(String.valueOf(failed));
-			currentTestModule.setNoErrors("0");
-			currentTestModule.setNoIgnored(String.valueOf(skipped));
-
 			String folderDate = parseFolderDate(file.getParentFile().getName());
-			if (folderDate != null) {
-				currentTestModule.setDate(folderDate);
-			} else {
-				currentTestModule.setDate(file.lastModified());
-			}
 
-			long totalDurationMs = 0;
+			java.util.LinkedHashMap<String, ArrayList<String>> suiteMap = new java.util.LinkedHashMap<>();
 			ArrayList<String> testObjects = splitJsonObjects(testsArray);
 			for (String testJson : testObjects) {
-				TestCase tc = new TestCase();
-				String name = extractJsonString(testJson, "\"name\"", null);
-				String status = extractJsonString(testJson, "\"status\"", null);
-				long duration = extractJsonLong(testJson, "\"duration\"");
 				String suite = extractJsonString(testJson, "\"suite\"", null);
-
-				tc.setName(name != null ? name : "Unnamed");
-				tc.setClassName(suite != null ? suite : "SQLValidation");
-				tc.setModuleName(currentTestModule.getName());
-				tc.setExecutionTime(String.valueOf(duration / 1000.0));
-				totalDurationMs += duration;
-
-				if ("failed".equals(status)) {
-					tc.setVerdict(TestCaseVerdict.e_FAIL);
-				} else if ("skipped".equals(status)) {
-					tc.setVerdict(TestCaseVerdict.e_IGNORED);
-				} else {
-					tc.setVerdict(TestCaseVerdict.e_PASS);
-				}
-				currentTestModule.addTestCase(tc);
+				if (suite == null) suite = "SQLValidation";
+				suiteMap.computeIfAbsent(suite, k -> new ArrayList<>()).add(testJson);
 			}
 
-			currentTestModule.setExecutionTime(String.valueOf(totalDurationMs / 1000.0));
-			currentTestModule.calcStats();
-			addToPackage(currentTestModule);
-			currentTestModule = null;
+			for (java.util.Map.Entry<String, ArrayList<String>> entry : suiteMap.entrySet()) {
+				String suiteName = entry.getKey();
+				ArrayList<String> tests = entry.getValue();
+
+				currentTestModule = new TestModule();
+				currentTestModule.setName(suiteName);
+
+				int totalTests = 0;
+				int failCount = 0;
+				int skipCount = 0;
+				long totalDurationMs = 0;
+
+				for (String testJson : tests) {
+					TestCase tc = new TestCase();
+					String name = extractJsonString(testJson, "\"name\"", null);
+					String status = extractJsonString(testJson, "\"status\"", null);
+					long duration = extractJsonLong(testJson, "\"duration\"");
+
+					tc.setName(name != null ? name : "Unnamed");
+					tc.setClassName(suiteName);
+					tc.setModuleName(suiteName);
+					tc.setExecutionTime(String.valueOf(duration / 1000.0));
+					totalDurationMs += duration;
+					totalTests++;
+
+					if ("failed".equals(status)) {
+						tc.setVerdict(TestCaseVerdict.e_FAIL);
+						failCount++;
+					} else if ("skipped".equals(status)) {
+						tc.setVerdict(TestCaseVerdict.e_IGNORED);
+						skipCount++;
+					} else {
+						tc.setVerdict(TestCaseVerdict.e_PASS);
+					}
+					currentTestModule.addTestCase(tc);
+				}
+
+				currentTestModule.setNoTestCases(String.valueOf(totalTests));
+				currentTestModule.setNoFailures(String.valueOf(failCount));
+				currentTestModule.setNoErrors("0");
+				currentTestModule.setNoIgnored(String.valueOf(skipCount));
+				currentTestModule.setExecutionTime(String.valueOf(totalDurationMs / 1000.0));
+
+				if (folderDate != null) {
+					currentTestModule.setDate(folderDate);
+				} else {
+					currentTestModule.setDate(file.lastModified());
+				}
+
+				currentTestModule.calcStats();
+				addToPackage(currentTestModule);
+				currentTestModule = null;
+			}
 		} catch (Exception e) {
 			System.err.println("Error parsing JSON file '" + file.getAbsolutePath() + "': " + e.getMessage());
 		}

@@ -57,7 +57,7 @@ java \
   -Dunitth.json.report.filter=TEST_ \
   -Dunitth.generate.exectimegraphs=true \
   -jar "$JAR" "$SAMPLE"/*
-verify "JSON only" 3 1 1 3
+verify "JSON only" 3 3 1 3
 
 echo ""
 echo "=== Test 3: Both (format=both) ==="
@@ -67,7 +67,7 @@ java \
   -Dunitth.xml.report.filter=TEST_ \
   -Dunitth.generate.exectimegraphs=true \
   -jar "$JAR" "$SAMPLE"/*
-verify "Both XML+JSON" 12 3 1 12
+verify "Both XML+JSON" 12 5 1 12
 
 echo ""
 echo "=== ALL 3 TESTS PASSED ==="
