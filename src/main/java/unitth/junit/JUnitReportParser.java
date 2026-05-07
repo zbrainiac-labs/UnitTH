@@ -364,7 +364,11 @@ public class JUnitReportParser extends ReportParser {
 				ArrayList<String> tests = entry.getValue();
 
 				currentTestModule = new TestModule();
-				currentTestModule.setName(suiteName);
+				int lastUnderscore = suiteName.lastIndexOf('_');
+				String moduleName = lastUnderscore > 0
+						? suiteName.substring(0, lastUnderscore) + "." + suiteName.substring(lastUnderscore + 1)
+						: "default." + suiteName;
+				currentTestModule.setName(moduleName);
 
 				int totalTests = 0;
 				int failCount = 0;
