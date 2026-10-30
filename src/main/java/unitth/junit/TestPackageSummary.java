@@ -219,7 +219,7 @@ public class TestPackageSummary extends TestItemSummary {
 	 * 
 	 * @return The change in pass rate.
 	 */
-	protected String getPrTrend(long trendInterval) {
+	public String getPrTrend(long trendInterval) {
 		TestPackage matchingTp = getTrendTestRun(trendInterval);
 
 		if (null != matchingTp) {
@@ -246,7 +246,7 @@ public class TestPackageSummary extends TestItemSummary {
 	 * 
 	 * @return The change in number of test cases.
 	 */
-	protected String getTcTrend(long trendInterval) {
+	public String getTcTrend(long trendInterval) {
 		TestPackage matchingTp = getTrendTestRun(trendInterval);
 		if (null != matchingTp) {
 			TestPackage tpAtEnd = spread.get(totalNumberOfTestRuns);
@@ -273,7 +273,7 @@ public class TestPackageSummary extends TestItemSummary {
 	 * 
 	 * @return The change in number of test cases.
 	 */
-	protected String getFnTrend(long trendInterval) {
+	public String getFnTrend(long trendInterval) {
 		TestPackage matchingTp = getTrendTestRun(trendInterval);
 		if (null != matchingTp) {
 			TestPackage tpAtEnd = spread.get(totalNumberOfTestRuns);

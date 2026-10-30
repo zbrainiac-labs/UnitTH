@@ -3,6 +3,7 @@
  */
 package unitth.html.junit;
 
+import unitth.core.Log;
 import java.io.BufferedWriter;
 import java.io.File;
 import java.io.IOException;
@@ -28,9 +29,8 @@ public class HtmlMainGen extends HtmlGen {
 
 	protected void generateMainPage() {
 		String fileName = destDir + File.separator + HTML_MAIN;
-		try {
-			BufferedWriter bwout = createFile(fileName);
-			startPageMain(bwout, "UnitTestHistory - Test History");
+		try (BufferedWriter bwout = createFile(fileName)) {
+			startSortablePage(bwout, "UnitTestHistory - Test History", "run_table", "package_table", "module_table");
 			startBody(bwout);
 			generateHeader(bwout);
 			bwout.write(t(1) + "<main class=\"container\">" + c_LF);
@@ -42,13 +42,12 @@ public class HtmlMainGen extends HtmlGen {
 			generateMainModuleSection(bwout);
 			generateMainModuleTotals(bwout);
 			bwout.write(t(1) + "</main>" + c_LF);
-			bwout.write(HtmlGenUtils.createArgsDivTag());
+			bwout.write(HtmlGenUtils.createArgsDivTag(th.getConfig()));
 			generateFooter(bwout);
 			endBody(bwout);
 			endPage(bwout);
 		} catch (IOException e) {
-			System.out.println("Error writing " + fileName);
-			e.printStackTrace();
+			Log.error("Error writing " + fileName, e);
 		}
 	}
 
@@ -68,22 +67,11 @@ public class HtmlMainGen extends HtmlGen {
 		writeKpi(buf, "Modules", String.valueOf(th.getNoUniqueModules()), th.getNoPackages() + " package(s)", "");
 		double avgPct = th.getAvePassPctDouble();
 		String pctColor = avgPct >= 99.0 ? "green" : avgPct >= 80.0 ? "accent" : "red";
-		writeKpi(buf, "Avg Pass Rate", th.getAvePassPct() + "%", "Best: " + th.getBestRun() + "% / Worst: " + th.getWorstRun() + "%", pctColor);
+		writeKpi(buf, "Avg Pass Rate", pctText(th.getAvePassPct()), "Best: " + pctText(th.getBestRun()) + " / Worst: " + pctText(th.getWorstRun()), pctColor);
 		String[] parts = th.getLastRun().split("&nbsp;");
 		String lastRun = parts.length == 2 ? parts[0] + "<br>" + parts[1] : th.getLastRun();
 		writeKpi(buf, "Last Run", lastRun, "", "");
 		buf.write(t(2) + "</div>" + c_LF);
-	}
-
-	private void writeKpi(BufferedWriter buf, String label, String value, String sub, String colorClass) throws IOException {
-		buf.write(t(3) + "<div class=\"kpi-card\">" + c_LF);
-		buf.write(t(4) + "<div class=\"kpi-label\">" + label + "</div>" + c_LF);
-		String cls = colorClass.isEmpty() ? "kpi-value" : "kpi-value " + colorClass;
-		buf.write(t(4) + "<div class=\"" + cls + "\">" + value + "</div>" + c_LF);
-		if (!sub.isEmpty()) {
-			buf.write(t(4) + "<div class=\"kpi-sub\">" + sub + "</div>" + c_LF);
-		}
-		buf.write(t(3) + "</div>" + c_LF);
 	}
 
 	private void generateMainRunSummary(BufferedWriter buf) throws IOException {
@@ -179,7 +167,7 @@ public class HtmlMainGen extends HtmlGen {
 			buf.write(t(5) + "<td>" + tr.getNoIgnored() + "</td>" + c_LF);
 			buf.write(t(5) + "<td>" + tr.getExecutionDate() + "</td>" + c_LF);
 			buf.write(t(5) + "<td class=\"mono\">" + tr.getExecutionTime() + "</td>" + c_LF);
-			buf.write(t(5) + "<td class=\"text-right\">" + tr.getPassPct() + "%</td>" + c_LF);
+			buf.write(t(5) + "<td class=\"text-right\">" + pctText(tr.getPassPct()) + "</td>" + c_LF);
 			buf.write(t(5) + "<td class=\"graphBar\">" + pctBarHtml(tr.getPassPctDouble(), tr.getPassPct()) + "</td>" + c_LF);
 			buf.write(t(4) + "</tr>" + c_LF);
 			idx--;
@@ -208,21 +196,7 @@ public class HtmlMainGen extends HtmlGen {
 		buf.write(t(3) + "<tbody>" + c_LF);
 		for (TestPackageSummary tps : th.getTestPackageSummaries().values()) {
 			if (null == tps) continue;
-			String link = "<a href=\"" + HTMLPACKAGEOUTPUTFILE_PREFIX + tps.getName() + HTMLPACKAGEOUTPUTFILE_SUFFIX + "\">" + tps.getName() + "</a>";
-			buf.write(t(4) + "<tr>" + c_LF);
-			buf.write(t(5) + "<td class=\"text-left\">" + link + "</td>" + c_LF);
-			buf.write(t(5) + "<td>" + tps.getNoRuns() + "</td>" + c_LF);
-			buf.write(t(5) + "<td>" + tps.getNoUniqueTestModules() + "</td>" + c_LF);
-			buf.write(t(5) + "<td>" + tps.getNoUniqueTestCases() + "</td>" + c_LF);
-			buf.write(t(5) + "<td>" + tps.getNoTestCases() + "</td>" + c_LF);
-			buf.write(t(5) + "<td>" + tps.getNoPassed() + "</td>" + c_LF);
-			buf.write(t(5) + "<td>" + tps.getNoErrors() + "</td>" + c_LF);
-			buf.write(t(5) + "<td>" + tps.getNoFailures() + "</td>" + c_LF);
-			buf.write(t(5) + "<td>" + tps.getNoIgnored() + "</td>" + c_LF);
-			buf.write(t(5) + "<td class=\"mono\">" + tps.getExecutionTime() + "</td>" + c_LF);
-			buf.write(t(5) + "<td class=\"text-right\">" + tps.getPassPct() + "%</td>" + c_LF);
-			buf.write(t(5) + "<td class=\"graphBar\">" + pctBarHtml(tps.getPassPctDouble(), tps.getPassPct()) + "</td>" + c_LF);
-			buf.write(t(4) + "</tr>" + c_LF);
+			writePackageRow(buf, tps);
 		}
 		buf.write(t(3) + "</tbody>" + c_LF);
 		buf.write(t(2) + "</table>" + c_LF);
@@ -247,20 +221,7 @@ public class HtmlMainGen extends HtmlGen {
 		buf.write(t(3) + "<tbody>" + c_LF);
 		for (TestModuleSummary tms : th.getTestModuleSummaries().values()) {
 			if (null == tms) continue;
-			String link = "<a href=\"" + HTMLMODULEOUTPUTFILE_PREFIX + tms.getName() + HTMLMODULEOUTPUTFILE_SUFFIX + "\">" + tms.getName() + "</a>";
-			buf.write(t(4) + "<tr>" + c_LF);
-			buf.write(t(5) + "<td class=\"text-left\">" + link + "</td>" + c_LF);
-			buf.write(t(5) + "<td>" + tms.getNoRuns() + "</td>" + c_LF);
-			buf.write(t(5) + "<td>" + tms.getNoUniqueTestCases() + "</td>" + c_LF);
-			buf.write(t(5) + "<td>" + tms.getNoTestCases() + "</td>" + c_LF);
-			buf.write(t(5) + "<td>" + tms.getNoPassed() + "</td>" + c_LF);
-			buf.write(t(5) + "<td>" + tms.getNoErrors() + "</td>" + c_LF);
-			buf.write(t(5) + "<td>" + tms.getNoFailures() + "</td>" + c_LF);
-			buf.write(t(5) + "<td>" + tms.getNoIgnored() + "</td>" + c_LF);
-			buf.write(t(5) + "<td class=\"mono\">" + tms.getExecutionTime() + "</td>" + c_LF);
-			buf.write(t(5) + "<td class=\"text-right\">" + tms.getPassPct() + "%</td>" + c_LF);
-			buf.write(t(5) + "<td class=\"graphBar\">" + pctBarHtml(tms.getPassPctDouble(), tms.getPassPct()) + "</td>" + c_LF);
-			buf.write(t(4) + "</tr>" + c_LF);
+			writeModuleRow(buf, tms);
 		}
 		buf.write(t(3) + "</tbody>" + c_LF);
 		buf.write(t(2) + "</table>" + c_LF);
@@ -294,30 +255,11 @@ public class HtmlMainGen extends HtmlGen {
 		buf.write(t(5) + "<td>" + th.getNoFailedTestCases() + "</td>" + c_LF);
 		buf.write(t(5) + "<td>" + th.getNoIgnoredTestCases() + "</td>" + c_LF);
 		buf.write(t(5) + "<td class=\"mono\">" + th.getTotalExecutionTime() + "</td>" + c_LF);
-		buf.write(t(5) + "<td class=\"text-right\"><strong>" + th.getAvePassPct() + "%</strong></td>" + c_LF);
+		buf.write(t(5) + "<td class=\"text-right\"><strong>" + pctText(th.getAvePassPct()) + "</strong></td>" + c_LF);
 		buf.write(t(5) + "<td class=\"graphBar\">" + pctBarHtml(th.getAvePassPctDouble(), th.getAvePassPct()) + "</td>" + c_LF);
 		buf.write(t(4) + "</tr>" + c_LF);
 		buf.write(t(3) + "</tbody>" + c_LF);
 		buf.write(t(2) + "</table>" + c_LF);
 	}
 
-	protected void startPageMain(BufferedWriter buf, String pageTitle) throws IOException {
-		buf.write("<!DOCTYPE html>" + c_LF);
-		buf.write("<html lang=\"en\">" + c_LF);
-		buf.write("<head>" + c_LF);
-		buf.write(t(1) + "<meta charset=\"UTF-8\">" + c_LF);
-		buf.write(t(1) + "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">" + c_LF);
-		buf.write(t(1) + "<title>" + pageTitle + "</title>" + c_LF);
-		buf.write(t(1) + "<link rel=\"stylesheet\" href=\"css/style.css\">" + c_LF);
-		buf.write(t(1) + "<script src=\"https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js\"></script>" + c_LF);
-		buf.write(t(1) + "<script src=\"" + UnitTH.JS_DIR + "/" + UnitTH.SORT_SCRIPT + "\"></script>" + c_LF);
-		buf.write(t(1) + "<script>" + c_LF);
-		buf.write(t(2) + "window.onload = function() {" + c_LF);
-		buf.write(t(3) + "['run_table','package_table','module_table'].forEach(function(id) {" + c_LF);
-		buf.write(t(4) + "var t = new TableSort; t.init(id);" + c_LF);
-		buf.write(t(3) + "});" + c_LF);
-		buf.write(t(2) + "};" + c_LF);
-		buf.write(t(1) + "</script>" + c_LF);
-		buf.write("</head>" + c_LF);
-	}
 }

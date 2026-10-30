@@ -14,7 +14,7 @@ import java.util.HashMap;
 import java.util.Locale;
 
 import unitth.core.ReportParser;
-import unitth.core.UnitTH;
+import unitth.core.UnitTHConfig;
 import unitth.core.UnitTHException;
 
 public class CTRFReportParser extends ReportParser {
@@ -22,8 +22,9 @@ public class CTRFReportParser extends ReportParser {
     private TestHistory history = null;
     private int currentRunIdx = 0;
 
-    public CTRFReportParser() {
-        history = new TestHistory();
+    public CTRFReportParser(UnitTHConfig config) {
+        super(config);
+        history = new TestHistory(config);
     }
 
     @Override
@@ -31,7 +32,7 @@ public class CTRFReportParser extends ReportParser {
             ArrayList<String> dirs) {
         currentRunIdx = 1;
         for (ArrayList<File> files : testRunFiles) {
-            TestRun currentTestRun = new TestRun();
+            TestRun currentTestRun = new TestRun(config);
             HashMap<String, TestPackage> parsedTestPackages = new HashMap<>();
             for (File f : files) {
                 parseFile(f, parsedTestPackages);
@@ -48,8 +49,8 @@ public class CTRFReportParser extends ReportParser {
         return history;
     }
 
-    private void parseFile(File file, HashMap<String, TestPackage> packages) {
-        if (UnitTH.c_DBG) {
+    void parseFile(File file, HashMap<String, TestPackage> packages) {
+        if (config.debug()) {
             System.out.println("Parsing CTRF file: " + file.getName());
         }
         try {
@@ -63,10 +64,13 @@ public class CTRFReportParser extends ReportParser {
 
             String folderDate = parseFolderDate(file.getParentFile().getName());
 
+            String projectName = extractString(json, "\"projectName\"", "environment");
+
             java.util.LinkedHashMap<String, ArrayList<String>> suiteMap = new java.util.LinkedHashMap<>();
             ArrayList<String> testObjects = splitTestObjects(testsArray);
             for (String testJson : testObjects) {
-                String suite = extractString(testJson, "\"suite\"", null);
+                String suite = projectName != null ? projectName
+                        : extractString(testJson, "\"suite\"", null);
                 if (suite == null) suite = "SQLValidation";
                 suiteMap.computeIfAbsent(suite, k -> new ArrayList<>()).add(testJson);
             }
@@ -94,7 +98,7 @@ public class CTRFReportParser extends ReportParser {
                     long duration = extractLong(testJson, "\"duration\"");
 
                     tc.setName(name != null ? name : "Unnamed");
-                    tc.setClassName(suiteName);
+                    tc.setClassName(moduleName);
                     tc.setModuleName(moduleName);
                     tc.setExecutionTime(String.valueOf(duration / 1000.0));
                     totalDurationMs += duration;
@@ -141,7 +145,7 @@ public class CTRFReportParser extends ReportParser {
         }
     }
 
-    private static String parseFolderDate(String folderName) {
+    static String parseFolderDate(String folderName) {
         SimpleDateFormat[] formats = {
             new SimpleDateFormat("yyyy-MM-dd'T'HHmmss'Z'", Locale.US),
             new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'", Locale.US),

@@ -12,6 +12,16 @@ import unitth.junit.TestHistory;
 
 public abstract class ReportParser extends DefaultHandler {
 
+	protected final UnitTHConfig config;
+
+	protected ReportParser(UnitTHConfig config) {
+		this.config = config;
+	}
+
+	public UnitTHConfig getConfig() {
+		return config;
+	}
+
 	public abstract TestHistory parseRuns(ArrayList<ArrayList<File>> testRunFiles,
 			ArrayList<String> dirs);
 }

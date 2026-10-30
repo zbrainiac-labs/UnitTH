@@ -4,8 +4,6 @@
 
 | # | Issue | Prio | Effort | Status |
 |---|-------|------|--------|--------|
-| 7 | **Zero unit tests** — `src/test/java/` is completely empty | **P2** | L | OPEN |
-| 8 | **Static mutable state** — `UnitTH.java` uses `public static` fields for all config (`rootFolder`, `reportPath`, etc.), not thread-safe | **P2** | L | OPEN |
 | 22 | **File DB layer** — store parsed test results in a JSON/SQLite file to enable incremental ingestion, faster re-generation, and retention policies without keeping raw XMLs | **P3** | L | OPEN |
 | 26 | **Generate text/PDF summary** — produce a plain-text or PDF report suitable for email notifications from CI | **P3** | L | OPEN |
 
@@ -44,3 +42,15 @@ Effort: **S** = < 30 min, **M** = 1-2 hours, **L** = half day+
 | 31 | **JSON/CTRF support in default parser** — `JUnitReportParser` now handles `.json` files inline (CTRF format) alongside JUnit XML; no need to switch parser mode | DONE |
 | 32 | **Mixed XML+JSON file filter** — `UnitTH.createJUnitXMLFilter()` accepts both `.xml` and `.json` in default mode, enabling folders with either or both formats | DONE |
 | 33 | **JSON-based test samples** — added 3 JSON-only run folders from DataOpsBackbone to `src/test/resources/junitsamplereport/` for E2E regression coverage | DONE |
+| 7 | **Zero unit tests** — JUnit 5 + AssertJ suite (config, model, parsers, file collection, concurrency), `ReportE2EIT` via Failsafe with golden snapshots, JaCoCo report-only coverage, `e2e/deploy-e2e.sh` for the deployed stack | DONE |
+| 8 | **Static mutable state** — replaced with immutable `UnitTHConfig` record injected into parsers, history and HTML classes; `UnitTH.run(args)` returns a status; parallel runs verified by `ConcurrencyTest` | DONE |
+| 36 | **Dead PNG graph code** — removed unused `unitth.graphics` package (6 classes, never instantiated since Chart.js) and the 10 unused images in `src/main/resources/images/` | DONE |
+| 37 | **Package/module derivation for CTRF** — package taken from `environment.projectName`; test case `className` set to the dotted module name so package pages list test cases and verdict spread | DONE |
+| 38 | **Run limit** — at most the 100 most recent run folders are reported | DONE |
+| 39 | **Build modernization** — plugin updates, enforcer (Maven 3.6.3+, Java 21+), pinned default plugins, `-Xlint:all`, `maven.compiler.release`, fixed jar name `unitth.jar`, POM license/scm metadata | DONE |
+| 34 | **`NaN%` pass rate for all-skipped tests** — pass rates with no executed tests now render `N/A` (text, KPI, progress bar); chart data emits `null` gaps; `ReportE2EIT` and `deploy-e2e.sh` fail on any `NaN` | DONE |
+| 35 | **Default JSON path ignores `environment.projectName`** — removed the duplicate CTRF parser inside `JUnitReportParser`; JSON files in default mode are delegated to `CTRFReportParser`, so both modes group by `projectName` | DONE |
+| 40 | **SonarQube critical fixes** — HTML-escape all names from input files (XSS) and restrict output file names / chart ids to `[A-Za-z0-9._-]`; fixed NPE on suite-level `<skipped/>`; writers via try-with-resources; removed fields shadowing `TestItem`; day arithmetic in `long`; no `printStackTrace`; typed `toArray`. Sonar: 0 bugs, 0 vulnerabilities (A/A) | DONE |
+| 42 | **Sonar quality gate (new code)** — `unitth.core.Log` (java.util.logging, plain stderr line) instead of `System.err`; `StringBuilder`/constants cleanups; tests for trend KPIs, Jenkins mode, error paths; new-code coverage 88%, 0 new issues | DONE |
+| 43 | **Locale-dependent number formatting** — on non-US default locales `passPctToString` produced `50,00`, crashing trend calculation (`Double.parseDouble`) and breaking chart JS arrays; all `String.format` now use `Locale.US` | DONE |
+| 41 | **Duplicated code (Sonar gate)** — shared `SaxReportParser` base for JUnit/Jenkins parsers (also disables external entities / DTD loading, XXE hardening); `TrendSource` interface for the 1/3/7-day trend getters; `HtmlGen` helpers for page head, KPI cards, dashboard charts, package/module rows and test case rows. Duplication 7.4% -> 0.4%, Sonar quality gate passed | DONE |

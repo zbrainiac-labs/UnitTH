@@ -13,7 +13,7 @@ import java.util.TreeSet;
 import unitth.core.CustomStringLengthComparator;
 import unitth.core.RunHistory;
 import unitth.core.TestItemUtils;
-import unitth.core.UnitTH;
+import unitth.core.UnitTHConfig;
 import unitth.core.UnitTHException;
 
 /**
@@ -26,7 +26,7 @@ import unitth.core.UnitTHException;
  * The class also has a set of counters for test history statistics.
  * 
  */
-public class TestHistory extends RunHistory {
+public class TestHistory extends RunHistory implements TrendSource {
 
 	private TreeSet<TestRun> history = null;
 	private TreeSet<TestRun> sortedHistory = null;
@@ -86,8 +86,15 @@ public class TestHistory extends RunHistory {
 	/**
 	 * Constructor that creates the empty history.
 	 */
-	public TestHistory() {
+	public TestHistory(UnitTHConfig config) {
+		this.config = config;
 		history = new TreeSet<TestRun>();
+	}
+
+	private final UnitTHConfig config;
+
+	public UnitTHConfig getConfig() {
+		return config;
 	}
 
 	/**
@@ -216,7 +223,7 @@ public class TestHistory extends RunHistory {
 	 * @return An array of all the keys in the test case summary collection.
 	 */
 	public String[] getUniqueTestCases() {
-		return (String[]) testCaseSummaries.keySet().toArray();
+		return testCaseSummaries.keySet().toArray(new String[0]);
 	}
 
 	/**
@@ -270,7 +277,7 @@ public class TestHistory extends RunHistory {
 	 * @return The pass rate of the best run.
 	 */
 	public String getBestRun() {
-		return String.format("%1.2f", bestRun);
+		return TestItemUtils.passPctToString(bestRun);
 	}
 
 	/**
@@ -279,7 +286,7 @@ public class TestHistory extends RunHistory {
 	 * @return The pass rate of the worst run.
 	 */
 	public String getWorstRun() {
-		return String.format("%1.2f", worstRun);
+		return TestItemUtils.passPctToString(worstRun);
 	}
 
 	/**
@@ -288,7 +295,7 @@ public class TestHistory extends RunHistory {
 	 * @return The average pass rate.
 	 */
 	public String getAvePassPct() {
-		return String.format("%1.2f", averagePassRate);
+		return TestItemUtils.passPctToString(averagePassRate);
 	}
 
 	/**
@@ -430,8 +437,8 @@ public class TestHistory extends RunHistory {
 					}
 				} catch (UnitTHException jthe) {
 					System.err
-							.print("Trying to add, package stats to a list created for another package name.");
-					jthe.printStackTrace(System.err);
+							.print("Trying to add, package stats to a list created for another package name. ");
+					System.err.println(jthe);
 				}
 
 				//
@@ -462,8 +469,8 @@ public class TestHistory extends RunHistory {
 						}
 					} catch (UnitTHException jthe) {
 						System.err
-								.print("Trying to add, module stats to a list created for another module name.");
-						jthe.printStackTrace(System.err);
+								.print("Trying to add, module stats to a list created for another module name. ");
+						System.err.println(jthe);
 					}
 
 					//
@@ -484,8 +491,8 @@ public class TestHistory extends RunHistory {
 							}
 						} catch (UnitTHException jthe) {
 							System.err
-									.print("Trying to add, test case stats to a list created for another test case name.");
-							jthe.printStackTrace(System.err);
+									.print("Trying to add, test case stats to a list created for another test case name. ");
+							System.err.println(jthe);
 						}
 					}
 				}
@@ -502,11 +509,11 @@ public class TestHistory extends RunHistory {
 			// having to generate it in all places where it is used. But only
 			// if the flag use absolute paths are set to false which is the
 			// default.
-			if (UnitTH.useAbsPaths == false) {
-				tr.setRelativePathFromOutputDir(UnitTH.rootFolder,
-					UnitTH.reportPath);
+			if (!config.useAbsPaths()) {
+				tr.setRelativePathFromOutputDir(config.rootFolder(),
+					config.reportPath());
 			} else {
-				tr.setAbsolutePath(UnitTH.rootFolder, UnitTH.reportPath);
+				tr.setAbsolutePath(config.rootFolder(), config.reportPath());
 			}
 			index--;
 		}
@@ -711,7 +718,7 @@ public class TestHistory extends RunHistory {
 	 * 
 	 * @return The change in pass rate.
 	 */
-	private String getPrTrend(long trendInterval) {
+	public String getPrTrend(long trendInterval) {
 		TestRun matchingTr = getTrendTestRun(trendInterval);
 		if (null != matchingTr) {
 			int runs = history.size();
@@ -729,24 +736,6 @@ public class TestHistory extends RunHistory {
 		}
 	}
 
-	/**
-	 * This method returns the pass rate trend for the last 3 days.
-	 * 
-	 * @return The pass rate trend as a formatted String.
-	 */
-	public String getPrTrendLast3Days() {
-		return getPrTrend(3 * 24 * 60 * 60 * 1000);
-	}
-
-	/**
-	 * This method returns the pass rate trend for the last 7 days.
-	 * 
-	 * @return The pass rate trend as a formatted String.
-	 */
-	public String getPrTrendLast7Days() {
-		return getPrTrend(7 * 24 * 60 * 60 * 1000);
-	}
-
 	/*
 	 * This method calculates the test case trend based on a time stamp taken at
 	 * the point of report generation.
@@ -756,7 +745,7 @@ public class TestHistory extends RunHistory {
 	 * 
 	 * @return The change in number of test cases.
 	 */
-	private String getTcTrend(long trendInterval) {
+	public String getTcTrend(long trendInterval) {
 		TestRun matchingTr = getTrendTestRun(trendInterval);
 		if (null != matchingTr) {
 			int runs = history.size();
@@ -782,7 +771,7 @@ public class TestHistory extends RunHistory {
 	 * 
 	 * @return The change in number of test cases.
 	 */
-	private String getFnTrend(long trendInterval) {
+	public String getFnTrend(long trendInterval) {
 		TestRun matchingTr = getTrendTestRun(trendInterval);
 		if (null != matchingTr) {
 			int runs = history.size();
@@ -797,60 +786,6 @@ public class TestHistory extends RunHistory {
 		} else {
 			return "NA";
 		}
-	}
-
-	/**
-	 * This method returns the test case trend for the last day.
-	 * 
-	 * @return The change in number of test cases.
-	 */
-	public String getTcTrendLastDay() {
-		return getTcTrend(1 * 24 * 60 * 60 * 1000);
-	}
-
-	/**
-	 * This method returns the test case trend for the last 3 days.
-	 * 
-	 * @return The change in number of test cases.
-	 */
-	public String getTcTrendLast3Days() {
-		return getTcTrend(3 * 24 * 60 * 60 * 1000);
-	}
-
-	/**
-	 * This method returns the test case trend for the last 7 days.
-	 * 
-	 * @return The change in number of test cases.
-	 */
-	public String getTcTrendLast7Days() {
-		return getTcTrend(7 * 24 * 60 * 60 * 1000);
-	}
-
-	/**
-	 * This method returns the failure trend for the last day.
-	 * 
-	 * @return The change in number of failures.
-	 */
-	public String getFnTrendLastDay() {
-		return getFnTrend(1 * 24 * 60 * 60 * 1000);
-	}
-
-	/**
-	 * This method returns the failure trend for the last 3 days.
-	 * 
-	 * @return The change in number of failures.
-	 */
-	public String getFnTrendLast3Days() {
-		return getFnTrend(3 * 24 * 60 * 60 * 1000);
-	}
-
-	/**
-	 * This method returns the failure trend for the last 7 days.
-	 * 
-	 * @return The change in number of failures.
-	 */
-	public String getFnTrendLast7Days() {
-		return getFnTrend(7 * 24 * 60 * 60 * 1000);
 	}
 
 	/**

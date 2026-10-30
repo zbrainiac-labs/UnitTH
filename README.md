@@ -41,20 +41,20 @@ The output is a static HTML5 site (responsive, dark mode) that can be opened loc
 mvn clean package
 ```
 
-This produces `target/unitth-3.0.0-SNAPSHOT.jar`.
+This produces `target/unitth.jar`.
 
 ### Run
 
 Point UnitTH at folders containing JUnit XML reports. Each folder represents one test run.
 
 ```bash
-java -jar unitth-3.0.0-SNAPSHOT.jar ./reports/2026-04-25 ./reports/2026-04-26 ./reports/2026-04-27
+java -jar unitth.jar ./reports/2026-04-25 ./reports/2026-04-26 ./reports/2026-04-27
 ```
 
 Or use a glob:
 
 ```bash
-java -jar unitth-3.0.0-SNAPSHOT.jar ./reports/*
+java -jar unitth.jar ./reports/*
 ```
 
 The report is written to `report.th/` by default. Open `report.th/index.html` in a browser.
@@ -62,16 +62,19 @@ The report is written to `report.th/` by default. Open `report.th/index.html` in
 ### Jenkins integration
 
 ```bash
-java -jar unitth-3.0.0-SNAPSHOT.jar -j /path/to/jenkins/jobs/my-job/builds
+java -jar unitth.jar -j /path/to/jenkins/jobs/my-job/builds
 ```
 
 ### Configuration
 
-Properties are resolved in this order (later overrides earlier):
+Properties are resolved in this order (first match wins):
 
-1. `unitth.properties` in `$HOME`
-2. `unitth.properties` in working directory
-3. `-D` flags on the command line
+1. `-D` flags on the command line
+2. `unitth.properties` in the working directory
+3. `unitth.properties` in `$HOME` (only read if there is no file in the working directory)
+4. Built-in defaults
+
+At most the 100 most recent run folders are included in a report.
 
 | Property | Default | Description |
 |----------|---------|-------------|
@@ -82,6 +85,7 @@ Properties are resolved in this order (later overrides earlier):
 | `unitth.report.format` | `json` | File format filter: `xml`, `json`, or `both` |
 | `unitth.generate.exectimegraphs` | `false` | Generate execution time graphs |
 | `unitth.use.absolute.paths` | `false` | Use absolute paths in report links |
+| `unitth.debug` | `false` | Verbose parser output (`-D` flag only) |
 
 Example with `-D` flags:
 
@@ -91,7 +95,7 @@ java \
   -Dunitth.report.format=json \
   -Dunitth.json.report.filter=TEST_ \
   -Dunitth.generate.exectimegraphs=true \
-  -jar unitth-3.0.0-SNAPSHOT.jar ./reports/*
+  -jar unitth.jar ./reports/*
 ```
 
 ### Expected input format
@@ -140,20 +144,37 @@ Both XML and JSON files can coexist in the same folder.
 }
 ```
 
+In both `--ctrf` and default mode, CTRF JSON files are grouped by `results.environment.projectName` (e.g. `org_repo_SQLValidation` -> package `org_repo`, module `org_repo.SQLValidation`), falling back to the per-test `suite` field.
+
+## Testing
+
+| What | Command | Notes |
+|------|---------|-------|
+| Unit tests | `mvn test` | JUnit 5 + AssertJ (`src/test/java`) |
+| Unit + E2E regression | `mvn verify` | `ReportE2EIT` runs the full pipeline on `src/test/resources/junitsamplereport` (XML, JSON, both, `--ctrf`) |
+| Coverage | `mvn verify` | Report only, no gate: `target/site/jacoco/` (unit), `target/site/jacoco-it/` (E2E) |
+| Golden snapshots | `mvn verify -Dunitth.updateGolden=true -Dtest=none -Dsurefire.failIfNoSpecifiedTests=false` | Regenerates `src/test/resources/golden/*.txt` after an intended output change (unit tests are skipped because `ConcurrencyTest` also reads the golden files) |
+| Manual smoke check | `./runtest.sh` | Shell script, not part of the Maven build |
+| Deployment E2E | `sh e2e/deploy-e2e.sh` | Against the running DataOpsBackbone stack: jar checksum, in-container `--ctrf` run, nginx pages, run limit, packages, test-case tables, dates. Env overrides: `RUNNER`, `BASE_URL`, `MAX_RUNS` |
+
 ## Project structure
 
 ```
 src/main/java/unitth/
-  core/          Main entry point, parsing orchestration, properties
+  core/          Entry point (UnitTH), immutable run configuration (UnitTHConfig), parser base
   junit/         JUnit/CTRF data model and parsers (TestRun, TestModule, TestCase, etc.)
   jenkins/       Jenkins report parser
-  graphics/      PNG chart generation (pass rate, test count, exec time)
-  html/junit/    HTML5 report generator
+  html/junit/    HTML5 report generator (charts rendered client-side with Chart.js)
   html/          Shared HTML utilities
 src/main/resources/
   css/           Stylesheet
   javascript/    Table sorting script
-  images/        Trend icons, logos
+src/test/java/   Unit tests and ReportE2EIT (in-process E2E regression)
+src/test/resources/
+  junitsamplereport/  Sample XML and CTRF runs used by the tests
+  golden/             Golden metric snapshots for ReportE2EIT
+e2e/deploy-e2e.sh    Deployment E2E check against the DataOpsBackbone stack
+runtest.sh           Manual smoke check
 ```
 
 ## Origin
@@ -163,7 +184,3 @@ Forked from [JUnitTH](http://junitth.sourceforge.net/) by Andreas Nyberg. Modern
 ## License
 
 [MIT](LICENSE.txt)
-
-## Repository
-
-[github.com/zbrainiac-labs/UnitTH](https://github.com/zbrainiac-labs/UnitTH)

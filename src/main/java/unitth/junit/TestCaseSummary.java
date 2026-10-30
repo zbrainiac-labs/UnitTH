@@ -169,15 +169,15 @@ public class TestCaseSummary extends TestItemSummary {
 	//
 	// TODO, VX.XNever used. Find a better for inheritance here.
 	//
-	protected String getFnTrend(long trendInterval) {
+	public String getFnTrend(long trendInterval) {
 		return "";
 	}
 
-	protected String getTcTrend(long trendInterval) {
+	public String getTcTrend(long trendInterval) {
 		return "";
 	}
 
-	protected String getPrTrend(long trendInterval) {
+	public String getPrTrend(long trendInterval) {
 		return "";
 	}
 

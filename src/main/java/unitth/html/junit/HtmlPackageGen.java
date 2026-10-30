@@ -3,6 +3,7 @@
  */
 package unitth.html.junit;
 
+import unitth.core.Log;
 import java.io.BufferedWriter;
 import java.io.File;
 import java.io.IOException;
@@ -37,11 +38,10 @@ public class HtmlPackageGen extends HtmlGen {
 
 	private void generatePackageRunPage(String packageName) {
 		String fileName = destDir + File.separator
-			+ HTMLPACKAGEOUTPUTFILE_PREFIX + packageName
+			+ HTMLPACKAGEOUTPUTFILE_PREFIX + fileSafe(packageName)
 			+ HTMLPACKAGEOUTPUTFILE_SUFFIX;
-		try {
-			BufferedWriter out = createFile(fileName);
-			startPagePackage(out, "UnitTH - " + packageName);
+		try (BufferedWriter out = createFile(fileName)) {
+			startSortablePage(out, "UnitTH - " + packageName, "run_table", "package_table", "module_table", "testcase_table", "spread_table");
 			startBody(out);
 			generateHeader(out);
 			out.write(t(1) + "<main class=\"container\">" + c_LF);
@@ -61,8 +61,7 @@ public class HtmlPackageGen extends HtmlGen {
 			endBody(out);
 			endPage(out);
 		} catch (IOException e) {
-			System.out.println("Error writing " + fileName);
-			e.printStackTrace();
+			Log.error("Error writing " + fileName, e);
 		}
 	}
 
@@ -70,28 +69,8 @@ public class HtmlPackageGen extends HtmlGen {
 		out.write(t(2) + "<nav class=\"breadcrumb\">" + c_LF);
 		out.write(t(3) + "<a href=\"index.html\">\u2190 Dashboard</a>" + c_LF);
 		out.write(t(3) + "<span class=\"separator\">/</span>" + c_LF);
-		out.write(t(3) + "<span class=\"current\">" + packageName + "</span>" + c_LF);
+		out.write(t(3) + "<span class=\"current\">" + esc(packageName) + "</span>" + c_LF);
 		out.write(t(2) + "</nav>" + c_LF);
-	}
-
-	protected void startPagePackage(BufferedWriter buf, String pageTitle) throws IOException {
-		buf.write("<!DOCTYPE html>" + c_LF);
-		buf.write("<html lang=\"en\">" + c_LF);
-		buf.write("<head>" + c_LF);
-		buf.write(t(1) + "<meta charset=\"UTF-8\">" + c_LF);
-		buf.write(t(1) + "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">" + c_LF);
-		buf.write(t(1) + "<title>" + pageTitle + "</title>" + c_LF);
-		buf.write(t(1) + "<link rel=\"stylesheet\" href=\"css/style.css\">" + c_LF);
-		buf.write(t(1) + "<script src=\"https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js\"></script>" + c_LF);
-		buf.write(t(1) + "<script src=\"" + UnitTH.JS_DIR + "/" + UnitTH.SORT_SCRIPT + "\"></script>" + c_LF);
-		buf.write(t(1) + "<script>" + c_LF);
-		buf.write(t(2) + "window.onload = function() {" + c_LF);
-		buf.write(t(3) + "['run_table','package_table','module_table','testcase_table','spread_table'].forEach(function(id) {" + c_LF);
-		buf.write(t(4) + "var t = new TableSort; t.init(id);" + c_LF);
-		buf.write(t(3) + "});" + c_LF);
-		buf.write(t(2) + "};" + c_LF);
-		buf.write(t(1) + "</script>" + c_LF);
-		buf.write("</head>" + c_LF);
 	}
 
 	private void generatePackageAnchors(BufferedWriter out, String packageName) throws IOException {
@@ -108,7 +87,7 @@ public class HtmlPackageGen extends HtmlGen {
 
 	private void generatePackagePackageSummary(BufferedWriter buf, TestPackageSummary tps) throws IOException {
 		buf.write(t(2) + "<h1>Package</h1>" + c_LF);
-		buf.write(t(2) + "<h2>" + tps.getName() + "</h2>" + c_LF);
+		buf.write(t(2) + "<h2>" + esc(tps.getName()) + "</h2>" + c_LF);
 
 		buf.write(t(2) + "<div class=\"kpi-strip\">" + c_LF);
 		writeKpi(buf, "Runs", String.valueOf(tps.getNoRuns()), "", "accent");
@@ -116,7 +95,7 @@ public class HtmlPackageGen extends HtmlGen {
 		writeKpi(buf, "Test Cases", String.valueOf(tps.getNoUniqueTestCases()), "", "");
 		double avgPct = tps.getPassPctDouble();
 		String pctColor = avgPct >= 99.0 ? "green" : avgPct >= 80.0 ? "accent" : "red";
-		writeKpi(buf, "Avg Pass Rate", tps.getPassPct() + "%", "Best: " + tps.getBestRun() + "% / Worst: " + tps.getWorstRun() + "%", pctColor);
+		writeKpi(buf, "Avg Pass Rate", pctText(tps.getPassPct()), "Best: " + pctText(tps.getBestRun()) + " / Worst: " + pctText(tps.getWorstRun()), pctColor);
 		buf.write(t(2) + "</div>" + c_LF);
 
 		buf.write(t(2) + "<section class=\"dashboard\">" + c_LF);
@@ -128,45 +107,12 @@ public class HtmlPackageGen extends HtmlGen {
 		String tcData = buildPackageTcCountDataJson(tps.getName());
 		String fnData = buildPackageFailCountDataJson(tps.getName());
 		String etData = buildPackageExecTimeDataJson(tps.getName());
-		String chartId = tps.getName().replace('.', '_');
+		String chartId = fileSafe(tps.getName()).replace('.', '_');
 
-		buf.write(t(4) + "<div class=\"card\">" + c_LF);
-		buf.write(t(5) + "<h3 class=\"card-header\">Pass Rates</h3>" + c_LF);
-		writeChartCanvas(buf, "chart_pr_" + chartId, 160);
-		writeBarChart(buf, "chart_pr_" + chartId, "Pass %", labels, prData,
-			"rgba(16,185,129,0.65)", "rgba(52,211,153,0.9)", prFail, 100);
-		buf.write(t(5) + "<h3 class=\"card-header\">Test Case Count</h3>" + c_LF);
-		writeChartCanvas(buf, "chart_tc_" + chartId, 100);
-		writeAreaChart(buf, "chart_tc_" + chartId, "Test Cases", labels, tcData,
-			"rgba(16,185,129,0.15)", "rgba(52,211,153,0.9)");
-		buf.write(t(4) + "</div>" + c_LF);
-
-		buf.write(t(4) + "<div class=\"card\">" + c_LF);
-		if (generateExecTimeGraphs) {
-			buf.write(t(5) + "<h3 class=\"card-header\">Execution Times (" + getExecutionTimeUnit(tps) + ")</h3>" + c_LF);
-			writeChartCanvas(buf, "chart_et_" + chartId, 120);
-			writeAreaChart(buf, "chart_et_" + chartId, "Exec Time", labels, etData,
-				"rgba(59,130,246,0.15)", "rgba(59,130,246,0.9)");
-		}
-		buf.write(t(5) + "<h3 class=\"card-header\">Non-Passing Test Cases</h3>" + c_LF);
-		writeChartCanvas(buf, "chart_fn_" + chartId, 100);
-		writeAreaChart(buf, "chart_fn_" + chartId, "Failures", labels, fnData,
-			"rgba(239,68,68,0.15)", "rgba(239,68,68,0.9)");
-		buf.write(t(4) + "</div>" + c_LF);
+		writeDashboardCharts(buf, chartId, new ChartSeries(labels, prData, prFail, tcData, etData, fnData), getExecutionTimeUnit(tps));
 
 		buf.write(t(3) + "</div>" + c_LF);
 		buf.write(t(2) + "</section>" + c_LF);
-	}
-
-	private void writeKpi(BufferedWriter buf, String label, String value, String sub, String colorClass) throws IOException {
-		buf.write(t(3) + "<div class=\"kpi-card\">" + c_LF);
-		buf.write(t(4) + "<div class=\"kpi-label\">" + label + "</div>" + c_LF);
-		String cls = colorClass.isEmpty() ? "kpi-value" : "kpi-value " + colorClass;
-		buf.write(t(4) + "<div class=\"" + cls + "\">" + value + "</div>" + c_LF);
-		if (!sub.isEmpty()) {
-			buf.write(t(4) + "<div class=\"kpi-sub\">" + sub + "</div>" + c_LF);
-		}
-		buf.write(t(3) + "</div>" + c_LF);
 	}
 
 	private void generatePackageRunSection(BufferedWriter buf, String packageName) throws IOException {
@@ -234,7 +180,7 @@ public class HtmlPackageGen extends HtmlGen {
 				buf.write(t(5) + "<td>" + tp.getNoIgnored() + "</td>" + c_LF);
 				buf.write(t(5) + "<td>" + tp.getExecutionDate() + "</td>" + c_LF);
 				buf.write(t(5) + "<td class=\"mono\">" + tp.getExecutionTime() + "</td>" + c_LF);
-				buf.write(t(5) + "<td class=\"text-right\">" + tp.getPassPct() + "%</td>" + c_LF);
+				buf.write(t(5) + "<td class=\"text-right\">" + pctText(tp.getPassPct()) + "</td>" + c_LF);
 				buf.write(t(5) + "<td class=\"graphBar\">" + pctBarHtml(tp.getPassPctDouble(), tp.getPassPct()) + "</td>" + c_LF);
 				buf.write(t(4) + "</tr>" + c_LF);
 			}
@@ -263,20 +209,7 @@ public class HtmlPackageGen extends HtmlGen {
 		buf.write(t(3) + "<tbody>" + c_LF);
 		for (TestModuleSummary tms : th.getTestModuleSummaries().values()) {
 			if (null != tms && tms.getPackageName().contains(packageName)) {
-				String link = "<a href=\"" + HTMLMODULEOUTPUTFILE_PREFIX + tms.getName() + HTMLMODULEOUTPUTFILE_SUFFIX + "\">" + tms.getName() + "</a>";
-				buf.write(t(4) + "<tr>" + c_LF);
-				buf.write(t(5) + "<td class=\"text-left\">" + link + "</td>" + c_LF);
-				buf.write(t(5) + "<td>" + tms.getNoRuns() + "</td>" + c_LF);
-				buf.write(t(5) + "<td>" + tms.getNoUniqueTestCases() + "</td>" + c_LF);
-				buf.write(t(5) + "<td>" + tms.getNoTestCases() + "</td>" + c_LF);
-				buf.write(t(5) + "<td>" + tms.getNoPassed() + "</td>" + c_LF);
-				buf.write(t(5) + "<td>" + tms.getNoErrors() + "</td>" + c_LF);
-				buf.write(t(5) + "<td>" + tms.getNoFailures() + "</td>" + c_LF);
-				buf.write(t(5) + "<td>" + tms.getNoIgnored() + "</td>" + c_LF);
-				buf.write(t(5) + "<td class=\"mono\">" + tms.getExecutionTime() + "</td>" + c_LF);
-				buf.write(t(5) + "<td class=\"text-right\">" + tms.getPassPct() + "%</td>" + c_LF);
-				buf.write(t(5) + "<td class=\"graphBar\">" + pctBarHtml(tms.getPassPctDouble(), tms.getPassPct()) + "</td>" + c_LF);
-				buf.write(t(4) + "</tr>" + c_LF);
+				writeModuleRow(buf, tms);
 			}
 		}
 		buf.write(t(3) + "</tbody>" + c_LF);
@@ -303,21 +236,7 @@ public class HtmlPackageGen extends HtmlGen {
 		buf.write(t(3) + "<tbody>" + c_LF);
 		for (TestPackageSummary tps : th.getTestPackageSummaries().values()) {
 			if (null != tps && tps.getName().contains(packageName + ".")) {
-				String link = "<a href=\"" + HTMLPACKAGEOUTPUTFILE_PREFIX + tps.getName() + HTMLPACKAGEOUTPUTFILE_SUFFIX + "\">" + tps.getName() + "</a>";
-				buf.write(t(4) + "<tr>" + c_LF);
-				buf.write(t(5) + "<td class=\"text-left\">" + link + "</td>" + c_LF);
-				buf.write(t(5) + "<td>" + tps.getNoRuns() + "</td>" + c_LF);
-				buf.write(t(5) + "<td>" + tps.getNoUniqueTestModules() + "</td>" + c_LF);
-				buf.write(t(5) + "<td>" + tps.getNoUniqueTestCases() + "</td>" + c_LF);
-				buf.write(t(5) + "<td>" + tps.getNoTestCases() + "</td>" + c_LF);
-				buf.write(t(5) + "<td>" + tps.getNoPassed() + "</td>" + c_LF);
-				buf.write(t(5) + "<td>" + tps.getNoErrors() + "</td>" + c_LF);
-				buf.write(t(5) + "<td>" + tps.getNoFailures() + "</td>" + c_LF);
-				buf.write(t(5) + "<td>" + tps.getNoIgnored() + "</td>" + c_LF);
-				buf.write(t(5) + "<td class=\"mono\">" + tps.getExecutionTime() + "</td>" + c_LF);
-				buf.write(t(5) + "<td class=\"text-right\">" + tps.getPassPct() + "%</td>" + c_LF);
-				buf.write(t(5) + "<td class=\"graphBar\">" + pctBarHtml(tps.getPassPctDouble(), tps.getPassPct()) + "</td>" + c_LF);
-				buf.write(t(4) + "</tr>" + c_LF);
+				writePackageRow(buf, tps);
 			}
 		}
 		buf.write(t(3) + "</tbody>" + c_LF);
@@ -332,15 +251,9 @@ public class HtmlPackageGen extends HtmlGen {
 		buf.write(t(3) + "<tbody>" + c_LF);
 		for (TestCaseSummary tcs : th.getTestCaseSummaries().values()) {
 			if (null != tcs && tcs.getPackageName().contains(packageName)) {
-				buf.write(t(4) + "<tr>" + c_LF);
-				buf.write(t(5) + "<td class=\"text-left\">" + tcs.getClassPlusTestCaseName(packageName) + "</td>" + c_LF);
-				buf.write(t(5) + "<td>" + tcs.getNoRuns() + "</td>" + c_LF);
-				buf.write(t(5) + "<td>" + tcs.getNoPassed() + "</td>" + c_LF);
-				buf.write(t(5) + "<td>" + tcs.getNoErrors() + "</td>" + c_LF);
-				buf.write(t(5) + "<td>" + tcs.getNoFailures() + "</td>" + c_LF);
-				buf.write(t(5) + "<td>" + tcs.getNoIgnored() + "</td>" + c_LF);
+				writeTestCaseCounts(buf, tcs, tcs.getClassPlusTestCaseName(packageName));
 				buf.write(t(5) + "<td class=\"mono\">" + tcs.getExecutionTime() + "</td>" + c_LF);
-				buf.write(t(5) + "<td class=\"text-right\">" + tcs.getPassPct() + "%</td>" + c_LF);
+				buf.write(t(5) + "<td class=\"text-right\">" + pctText(tcs.getPassPct()) + "</td>" + c_LF);
 				buf.write(t(5) + "<td class=\"graphBar\">" + pctBarHtml(tcs.getPassPctDouble(), tcs.getPassPct()) + "</td>" + c_LF);
 				buf.write(t(4) + "</tr>" + c_LF);
 			}
@@ -357,13 +270,7 @@ public class HtmlPackageGen extends HtmlGen {
 		buf.write(t(3) + "<tbody>" + c_LF);
 		for (TestCaseSummary tcs : th.getTestCaseSummaries().values()) {
 			if (null != tcs && tcs.getPackageName().contains(packageName)) {
-				buf.write(t(4) + "<tr>" + c_LF);
-				buf.write(t(5) + "<td class=\"text-left\">" + tcs.getClassPlusTestCaseName(packageName) + "</td>" + c_LF);
-				buf.write(t(5) + "<td>" + tcs.getNoRuns() + "</td>" + c_LF);
-				buf.write(t(5) + "<td>" + tcs.getNoPassed() + "</td>" + c_LF);
-				buf.write(t(5) + "<td>" + tcs.getNoErrors() + "</td>" + c_LF);
-				buf.write(t(5) + "<td>" + tcs.getNoFailures() + "</td>" + c_LF);
-				buf.write(t(5) + "<td>" + tcs.getNoIgnored() + "</td>" + c_LF);
+				writeTestCaseCounts(buf, tcs, tcs.getClassPlusTestCaseName(packageName));
 				buf.write(t(5) + "<td class=\"spread-cell\">" + c_LF);
 				buf.write(t(6) + "<div class=\"spread-bar\">" + c_LF);
 				generateSpreadBar(buf, tcs);

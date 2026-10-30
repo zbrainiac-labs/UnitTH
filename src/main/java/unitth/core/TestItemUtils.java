@@ -73,7 +73,7 @@ public class TestItemUtils {
 	 * @return A formatted string that represents the pass percentage
 	 */
 	public static String passPctToString(double passPct) {
-		return String.format("%1.2f", passPct);
+		return String.format(Locale.US, "%1.2f", passPct);
 	}
 
 	/**
@@ -197,7 +197,7 @@ public class TestItemUtils {
 			start = formatter.parse(startDate);
 			end = formatter.parse(endDate);
 		} catch (ParseException dfe) {
-			dfe.printStackTrace();
+			Log.error("Could not parse date", dfe);
 			return 0.0;
 		}
 		

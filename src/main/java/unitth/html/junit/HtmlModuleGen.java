@@ -3,6 +3,7 @@
  */
 package unitth.html.junit;
 
+import unitth.core.Log;
 import java.io.BufferedWriter;
 import java.io.File;
 import java.io.IOException;
@@ -36,11 +37,10 @@ public class HtmlModuleGen extends HtmlGen {
 
 	private void generateModuleRunPage(String moduleName) {
 		String fileName = destDir + File.separator
-			+ HTMLMODULEOUTPUTFILE_PREFIX + moduleName
+			+ HTMLMODULEOUTPUTFILE_PREFIX + fileSafe(moduleName)
 			+ HTMLMODULEOUTPUTFILE_SUFFIX;
-		try {
-			BufferedWriter out = createFile(fileName);
-			startPageModule(out, "UnitTH - " + moduleName);
+		try (BufferedWriter out = createFile(fileName)) {
+			startSortablePage(out, "UnitTH - " + moduleName, "run_table", "testcase_table", "spread_table");
 			startBody(out);
 			generateHeader(out);
 			out.write(t(1) + "<main class=\"container\">" + c_LF);
@@ -56,8 +56,7 @@ public class HtmlModuleGen extends HtmlGen {
 			endBody(out);
 			endPage(out);
 		} catch (IOException e) {
-			System.out.println("Error writing " + fileName);
-			e.printStackTrace();
+			Log.error("Error writing " + fileName, e);
 		}
 	}
 
@@ -65,7 +64,7 @@ public class HtmlModuleGen extends HtmlGen {
 		out.write(t(2) + "<nav class=\"breadcrumb\">" + c_LF);
 		out.write(t(3) + "<a href=\"index.html\">\u2190 Dashboard</a>" + c_LF);
 		out.write(t(3) + "<span class=\"separator\">/</span>" + c_LF);
-		out.write(t(3) + "<span class=\"current\">" + moduleName + "</span>" + c_LF);
+		out.write(t(3) + "<span class=\"current\">" + esc(moduleName) + "</span>" + c_LF);
 		out.write(t(2) + "</nav>" + c_LF);
 	}
 
@@ -79,14 +78,14 @@ public class HtmlModuleGen extends HtmlGen {
 
 	private void generateModuleModuleSummary(BufferedWriter buf, TestModuleSummary tms) throws IOException {
 		buf.write(t(2) + "<h1>Module</h1>" + c_LF);
-		buf.write(t(2) + "<h2>" + tms.getName() + "</h2>" + c_LF);
+		buf.write(t(2) + "<h2>" + esc(tms.getName()) + "</h2>" + c_LF);
 
 		buf.write(t(2) + "<div class=\"kpi-strip\">" + c_LF);
 		writeKpi(buf, "Runs", String.valueOf(tms.getNoRuns()), "", "accent");
 		writeKpi(buf, "Test Cases", String.valueOf(tms.getNoUniqueTestCases()), "", "");
 		double avgPct = tms.getPassPctDouble();
 		String pctColor = avgPct >= 99.0 ? "green" : avgPct >= 80.0 ? "accent" : "red";
-		writeKpi(buf, "Avg Pass Rate", tms.getPassPct() + "%", "Best: " + tms.getBestRun() + "% / Worst: " + tms.getWorstRun() + "%", pctColor);
+		writeKpi(buf, "Avg Pass Rate", pctText(tms.getPassPct()), "Best: " + pctText(tms.getBestRun()) + " / Worst: " + pctText(tms.getWorstRun()), pctColor);
 		buf.write(t(2) + "</div>" + c_LF);
 
 		buf.write(t(2) + "<section class=\"dashboard\">" + c_LF);
@@ -98,45 +97,12 @@ public class HtmlModuleGen extends HtmlGen {
 		String tcData = buildModuleTcCountDataJson(tms.getPackageName(), tms.getName());
 		String fnData = buildModuleFailCountDataJson(tms.getPackageName(), tms.getName());
 		String etData = buildModuleExecTimeDataJson(tms.getPackageName(), tms.getName());
-		String chartId = tms.getName().replace('.', '_');
+		String chartId = fileSafe(tms.getName()).replace('.', '_');
 
-		buf.write(t(4) + "<div class=\"card\">" + c_LF);
-		buf.write(t(5) + "<h3 class=\"card-header\">Pass Rates</h3>" + c_LF);
-		writeChartCanvas(buf, "chart_pr_" + chartId, 160);
-		writeBarChart(buf, "chart_pr_" + chartId, "Pass %", labels, prData,
-			"rgba(16,185,129,0.65)", "rgba(52,211,153,0.9)", prFail, 100);
-		buf.write(t(5) + "<h3 class=\"card-header\">Test Case Count</h3>" + c_LF);
-		writeChartCanvas(buf, "chart_tc_" + chartId, 100);
-		writeAreaChart(buf, "chart_tc_" + chartId, "Test Cases", labels, tcData,
-			"rgba(16,185,129,0.15)", "rgba(52,211,153,0.9)");
-		buf.write(t(4) + "</div>" + c_LF);
-
-		buf.write(t(4) + "<div class=\"card\">" + c_LF);
-		if (generateExecTimeGraphs) {
-			buf.write(t(5) + "<h3 class=\"card-header\">Execution Times (" + getExecutionTimeUnit(tms) + ")</h3>" + c_LF);
-			writeChartCanvas(buf, "chart_et_" + chartId, 120);
-			writeAreaChart(buf, "chart_et_" + chartId, "Exec Time", labels, etData,
-				"rgba(59,130,246,0.15)", "rgba(59,130,246,0.9)");
-		}
-		buf.write(t(5) + "<h3 class=\"card-header\">Non-Passing Test Cases</h3>" + c_LF);
-		writeChartCanvas(buf, "chart_fn_" + chartId, 100);
-		writeAreaChart(buf, "chart_fn_" + chartId, "Failures", labels, fnData,
-			"rgba(239,68,68,0.15)", "rgba(239,68,68,0.9)");
-		buf.write(t(4) + "</div>" + c_LF);
+		writeDashboardCharts(buf, chartId, new ChartSeries(labels, prData, prFail, tcData, etData, fnData), getExecutionTimeUnit(tms));
 
 		buf.write(t(3) + "</div>" + c_LF);
 		buf.write(t(2) + "</section>" + c_LF);
-	}
-
-	private void writeKpi(BufferedWriter buf, String label, String value, String sub, String colorClass) throws IOException {
-		buf.write(t(3) + "<div class=\"kpi-card\">" + c_LF);
-		buf.write(t(4) + "<div class=\"kpi-label\">" + label + "</div>" + c_LF);
-		String cls = colorClass.isEmpty() ? "kpi-value" : "kpi-value " + colorClass;
-		buf.write(t(4) + "<div class=\"" + cls + "\">" + value + "</div>" + c_LF);
-		if (!sub.isEmpty()) {
-			buf.write(t(4) + "<div class=\"kpi-sub\">" + sub + "</div>" + c_LF);
-		}
-		buf.write(t(3) + "</div>" + c_LF);
 	}
 
 	private void generateModuleRunSection(BufferedWriter buf, String moduleName) throws IOException {
@@ -188,7 +154,7 @@ public class HtmlModuleGen extends HtmlGen {
 				buf.write(t(5) + "<td>" + tm.getNoIgnored() + "</td>" + c_LF);
 				buf.write(t(5) + "<td>" + tm.getExecutionDate() + "</td>" + c_LF);
 				buf.write(t(5) + "<td class=\"mono\">" + tm.getExecutionTime() + "</td>" + c_LF);
-				buf.write(t(5) + "<td class=\"text-right\">" + tm.getPassPct() + "%</td>" + c_LF);
+				buf.write(t(5) + "<td class=\"text-right\">" + pctText(tm.getPassPct()) + "</td>" + c_LF);
 				buf.write(t(5) + "<td class=\"graphBar\">" + pctBarHtml(tm.getPassPctDouble(), tm.getPassPct()) + "</td>" + c_LF);
 				buf.write(t(4) + "</tr>" + c_LF);
 			}
@@ -228,23 +194,4 @@ public class HtmlModuleGen extends HtmlGen {
 		buf.write(t(2) + "</table>" + c_LF);
 	}
 
-	protected void startPageModule(BufferedWriter buf, String pageTitle) throws IOException {
-		buf.write("<!DOCTYPE html>" + c_LF);
-		buf.write("<html lang=\"en\">" + c_LF);
-		buf.write("<head>" + c_LF);
-		buf.write(t(1) + "<meta charset=\"UTF-8\">" + c_LF);
-		buf.write(t(1) + "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">" + c_LF);
-		buf.write(t(1) + "<title>" + pageTitle + "</title>" + c_LF);
-		buf.write(t(1) + "<link rel=\"stylesheet\" href=\"css/style.css\">" + c_LF);
-		buf.write(t(1) + "<script src=\"https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js\"></script>" + c_LF);
-		buf.write(t(1) + "<script src=\"" + UnitTH.JS_DIR + "/" + UnitTH.SORT_SCRIPT + "\"></script>" + c_LF);
-		buf.write(t(1) + "<script>" + c_LF);
-		buf.write(t(2) + "window.onload = function() {" + c_LF);
-		buf.write(t(3) + "['run_table','testcase_table','spread_table'].forEach(function(id) {" + c_LF);
-		buf.write(t(4) + "var t = new TableSort; t.init(id);" + c_LF);
-		buf.write(t(3) + "});" + c_LF);
-		buf.write(t(2) + "};" + c_LF);
-		buf.write(t(1) + "</script>" + c_LF);
-		buf.write("</head>" + c_LF);
-	}
 }

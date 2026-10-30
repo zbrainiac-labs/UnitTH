@@ -4,6 +4,7 @@
 
 package unitth.junit;
 
+import unitth.core.Log;
 import java.io.File;
 import java.net.URI;
 import java.util.Arrays;
@@ -13,7 +14,7 @@ import java.util.Iterator;
 
 import unitth.core.CustomStringLengthComparator;
 import unitth.core.TestItemUtils;
-import unitth.core.UnitTH;
+import unitth.core.UnitTHConfig;
 
 /**
  * This class implements the functionality for the test run object. It stores
@@ -22,8 +23,7 @@ import unitth.core.UnitTH;
  */
 public class TestRun extends TestItem implements Comparable<TestRun> {
 
-	/* The The lowest time stamp in all modules. */
-	private String runDate = null;
+	/* runDate (lowest module time stamp) is inherited from TestItem. */
 	/* The <code>HashMap</code> holding all the test packages in this test run. */
 	private HashMap<String, TestPackage> testPackages;
 
@@ -68,11 +68,6 @@ public class TestRun extends TestItem implements Comparable<TestRun> {
 	 * JUnit reports.
 	 */
 	private String absolutePath = "";
-	/*
-	 * The pass rate for this run. It is calculated out of all test cases in all
-	 * test modules.
-	 */
-	private double passPct = 0.0;
 	/* The run index of this test run. */
 	private int runIdx = 0;
 	/* Used when creating the relative path for this test run. */
@@ -83,9 +78,12 @@ public class TestRun extends TestItem implements Comparable<TestRun> {
 	/**
 	 * CTOR, initializes the list of test modules belonging to this run.
 	 */
-	public TestRun() {
+	public TestRun(UnitTHConfig config) {
+		this.config = config;
 		testPackages = new HashMap<String, TestPackage>();
 	}
+
+	private final UnitTHConfig config;
 
 	/**
 	 * Does a comparison based on the run stamp which should be unique.
@@ -346,7 +344,7 @@ public class TestRun extends TestItem implements Comparable<TestRun> {
 		}
 		
 		// All set, what has been parsed...
-		if (UnitTH.c_DBG) {
+		if (config.debug()) {
 			System.out.println("Parsed: tcs " + noTestCases + " e " + noErrors
 					+ " f " + noFailures + " et " + executionTime + " rd "
 					+ runDate);
@@ -362,7 +360,7 @@ public class TestRun extends TestItem implements Comparable<TestRun> {
 	 */
 	public void setRunPath(String path) {
 		File finput = new File(path);
-		File foutput = new File(UnitTH.rootFolder);
+		File foutput = new File(config.rootFolder());
 		String sinput = finput.toURI().normalize().getPath();
 		String soutput = foutput.toURI().normalize().getPath();
 		runPath = calcRelativePath(sinput, soutput);
@@ -459,7 +457,7 @@ public class TestRun extends TestItem implements Comparable<TestRun> {
 				+ INDEX_HTML);
 
 		if (!theIndexFile.exists()) {
-			if (UnitTH.c_DBG) {
+			if (config.debug()) {
 				System.err
 						.println("index.html file ("
 								+ theIndexFile
@@ -488,7 +486,7 @@ public class TestRun extends TestItem implements Comparable<TestRun> {
 
 			relativePath = calcRelativePath(indexPath, reportPath);
 		} catch (Exception e) {
-			e.printStackTrace();
+			Log.error("Could not calculate the relative report path", e);
 		}
 	}
 
@@ -499,7 +497,7 @@ public class TestRun extends TestItem implements Comparable<TestRun> {
 				+ INDEX_HTML);
 		
 		if (!theIndexFile.exists()) {
-			if (UnitTH.c_DBG) {
+			if (config.debug()) {
 				System.err
 						.println("index.html file ("
 								+ theIndexFile
@@ -590,7 +588,7 @@ public class TestRun extends TestItem implements Comparable<TestRun> {
 	}
 	
 	public String getChosenPath() {
-		if (UnitTH.useAbsPaths == true) {
+		if (config.useAbsPaths()) {
 			return absolutePath;
 		} else {
 			return runPath;

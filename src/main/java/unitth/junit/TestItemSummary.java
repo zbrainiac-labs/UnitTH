@@ -4,6 +4,8 @@
 
 package unitth.junit;
 
+import java.util.Locale;
+
 import unitth.core.TestItemUtils;
 
 /**
@@ -15,7 +17,7 @@ import unitth.core.TestItemUtils;
  */
 // TODO, VX.X Find a better solution than using an abstract class here since all
 // classes inheriting from TestItemSummary does not need all methods.
-public abstract class TestItemSummary {
+public abstract class TestItemSummary implements TrendSource {
 
 	protected int noPassed = 0;
 	protected int noFailed = 0;
@@ -102,7 +104,7 @@ public abstract class TestItemSummary {
 	 * @return The stringified execution time. 3 decimals.
 	 */
 	public String getExecutionTime() {
-		return String.format("%1.3f", sumExecutionTime / (double) noRuns);
+		return String.format(Locale.US, "%1.3f", sumExecutionTime / noRuns);
 	}
 
 	/**
@@ -189,7 +191,7 @@ public abstract class TestItemSummary {
 	 * @return The pass rate of the best run.
 	 */
 	public String getBestRun() {
-		return String.format("%1.2f", bestRun);
+		return String.format(Locale.US, "%1.2f", bestRun);
 	}
 
 	/**
@@ -198,79 +200,7 @@ public abstract class TestItemSummary {
 	 * @return The pass rate of the worst run.
 	 */
 	public String getWorstRun() {
-		return String.format("%1.2f", worstRun);
-	}
-
-	/**
-	 * This method returns the test case trend for the last day.
-	 * 
-	 * @return The change in number of test cases.
-	 */
-	public String getTcTrendLastDay() {
-		return getTcTrend(1 * 24 * 60 * 60 * 1000);
-	}
-
-	/**
-	 * This method returns the test case trend for the last 3 days.
-	 * 
-	 * @return The change in number of test cases.
-	 */
-	public String getTcTrendLast3Days() {
-		return getTcTrend(3 * 24 * 60 * 60 * 1000);
-	}
-
-	/**
-	 * This method returns the test case trend for the last 7 days.
-	 * 
-	 * @return The change in number of test cases.
-	 */
-	public String getTcTrendLast7Days() {
-		return getTcTrend(7 * 24 * 60 * 60 * 1000);
-	}
-
-	/**
-	 * This method returns the failure trend for the last day.
-	 * 
-	 * @return The change in number of failure.
-	 */
-	public String getFnTrendLastDay() {
-		return getFnTrend(1 * 24 * 60 * 60 * 1000);
-	}
-
-	/**
-	 * This method returns the failure trend for the last 3 days.
-	 * 
-	 * @return The change in number of failures.
-	 */
-	public String getFnTrendLast3Days() {
-		return getFnTrend(3 * 24 * 60 * 60 * 1000);
-	}
-
-	/**
-	 * This method returns the failure trend for the last 7 days.
-	 * 
-	 * @return The change in number of failures.
-	 */
-	public String getFnTrendLast7Days() {
-		return getFnTrend(7 * 24 * 60 * 60 * 1000);
-	}
-
-	/**
-	 * This method returns the pass rate trend for the last 3 days.
-	 * 
-	 * @return The pass rate trend as a formatted String.
-	 */
-	public String getPrTrendLast3Days() {
-		return getPrTrend(3 * 24 * 60 * 60 * 1000);
-	}
-
-	/**
-	 * This method returns the pass rate trend for the last 7 days.
-	 * 
-	 * @return The pass rate trend as a formatted String.
-	 */
-	public String getPrTrendLast7Days() {
-		return getPrTrend(7 * 24 * 60 * 60 * 1000);
+		return String.format(Locale.US, "%1.2f", worstRun);
 	}
 
 	/**
@@ -315,11 +245,8 @@ public abstract class TestItemSummary {
 	}
 
 	// Good solution?
-	protected abstract String getFnTrend(long trendInterval);
 
-	protected abstract String getTcTrend(long trendInterval);
 
-	protected abstract String getPrTrend(long trendInterval);
 
 	protected abstract String getPrDiff(int runs, int idx);
 }

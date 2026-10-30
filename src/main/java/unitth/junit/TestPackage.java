@@ -27,8 +27,6 @@ public class TestPackage extends TestItem {
 	private int noTestCases = 0;
 	/** The run index for this instance of <code>TestPackage</code>. */
 	private int runIdx = 0;
-	/** The first time stamp where this run was included. */
-	private String runDate = "";
 
 	/** This is a container for all test classes part of this package. */
 	private HashMap<String, TestModule> testModules = null;
@@ -60,6 +58,7 @@ public class TestPackage extends TestItem {
 	 * Ctor, simply instantiates the object containers.
 	 */
 	public TestPackage() {
+		runDate = "";
 		testModules = new HashMap<String, TestModule>();
 	}
 	

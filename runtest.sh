@@ -1,7 +1,7 @@
 #!/bin/sh
 set -e
 
-JAR=./target/unitth-3.0.0-SNAPSHOT.jar
+JAR=./target/unitth.jar
 SAMPLE=./src/test/resources/junitsamplereport
 REPORT=./src/test/resources/unithistreport
 
