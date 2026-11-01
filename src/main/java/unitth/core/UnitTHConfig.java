@@ -24,6 +24,7 @@ public record UnitTHConfig(
 		String reportFormat,
 		boolean debug,
 		int maxRuns,
+		String storeFile,
 		List<String> inputArgs) {
 
 	public static final String PROPS_FILENAME = "unitth.properties";
@@ -35,6 +36,8 @@ public record UnitTHConfig(
 	public static final String PROP_GEN_EXECTIMEGRAPHS = "unitth.generate.exectimegraphs";
 	public static final String PROP_REPORT_FORMAT = "unitth.report.format";
 	public static final String PROP_DEBUG = "unitth.debug";
+	public static final String PROP_STORE_FILE = "unitth.store.file";
+	public static final String PROP_MAX_RUNS = "unitth.max.runs";
 
 	public static final int DEFAULT_MAX_RUNS = 100;
 
@@ -44,7 +47,7 @@ public record UnitTHConfig(
 
 	public static UnitTHConfig defaults() {
 		return new UnitTHConfig("report.th", ".", false, false, "TEST-", "TEST_",
-				"json", false, DEFAULT_MAX_RUNS, List.of());
+				"json", false, DEFAULT_MAX_RUNS, null, List.of());
 	}
 
 	/**
@@ -64,7 +67,8 @@ public record UnitTHConfig(
 				str(PROP_JSON_REPORT_FILTER, sys, file, d.jsonReportFilter()),
 				str(PROP_REPORT_FORMAT, sys, file, d.reportFormat()),
 				"true".equalsIgnoreCase(sys.getProperty(PROP_DEBUG)),
-				d.maxRuns(),
+				intValue(str(PROP_MAX_RUNS, sys, file, null), d.maxRuns()),
+				str(PROP_STORE_FILE, sys, file, d.storeFile()),
 				List.of());
 	}
 
@@ -77,12 +81,29 @@ public record UnitTHConfig(
 
 	public UnitTHConfig withMaxRuns(int max) {
 		return new UnitTHConfig(rootFolder, reportPath, generateExecTimeGraphs, useAbsPaths,
-				xmlReportFilter, jsonReportFilter, reportFormat, debug, max, inputArgs);
+				xmlReportFilter, jsonReportFilter, reportFormat, debug, max, storeFile, inputArgs);
+	}
+
+	public UnitTHConfig withStoreFile(String store) {
+		return new UnitTHConfig(rootFolder, reportPath, generateExecTimeGraphs, useAbsPaths,
+				xmlReportFilter, jsonReportFilter, reportFormat, debug, maxRuns, store, inputArgs);
 	}
 
 	public UnitTHConfig withInputArgs(List<String> args) {
 		return new UnitTHConfig(rootFolder, reportPath, generateExecTimeGraphs, useAbsPaths,
-				xmlReportFilter, jsonReportFilter, reportFormat, debug, maxRuns, args);
+				xmlReportFilter, jsonReportFilter, reportFormat, debug, maxRuns, storeFile, args);
+	}
+
+	private static int intValue(String v, int def) {
+		if (v == null) {
+			return def;
+		}
+		try {
+			return Integer.parseInt(v.trim());
+		} catch (NumberFormatException e) {
+			Log.warn("Ignoring invalid number '" + v + "', using " + def);
+			return def;
+		}
 	}
 
 	static Properties readFile(File f) {
@@ -93,7 +114,7 @@ public record UnitTHConfig(
 		try (InputStream in = new FileInputStream(f)) {
 			p.load(in);
 		} catch (IOException ioe) {
-			System.err.println("Problems parsing the properties file... using default settings instead.");
+			Log.warn("Problems parsing the properties file... using default settings instead.");
 		}
 		return p;
 	}

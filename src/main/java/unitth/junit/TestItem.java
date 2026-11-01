@@ -4,6 +4,7 @@
 
 package unitth.junit;
 
+import unitth.core.Log;
 import unitth.core.TestItemUtils;
 
 /**
@@ -30,8 +31,7 @@ public class TestItem {
 		try {
 			executionTime = Double.parseDouble(s);
 		} catch (NumberFormatException nfe) {
-			System.err.println("Could not parse the execution time " + s
-					+ " setting the execution time to 0.000");
+			Log.warn("Could not parse the execution time " + s + " setting the execution time to 0.000");
 			executionTime = 0.000;
 		}
 	}

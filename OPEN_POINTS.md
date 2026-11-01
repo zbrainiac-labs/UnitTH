@@ -4,7 +4,6 @@
 
 | # | Issue | Prio | Effort | Status |
 |---|-------|------|--------|--------|
-| 22 | **File DB layer** — store parsed test results in a JSON/SQLite file to enable incremental ingestion, faster re-generation, and retention policies without keeping raw XMLs | **P3** | L | OPEN |
 | 26 | **Generate text/PDF summary** — produce a plain-text or PDF report suitable for email notifications from CI | **P3** | L | OPEN |
 
 Effort: **S** = < 30 min, **M** = 1-2 hours, **L** = half day+
@@ -54,3 +53,4 @@ Effort: **S** = < 30 min, **M** = 1-2 hours, **L** = half day+
 | 42 | **Sonar quality gate (new code)** — `unitth.core.Log` (java.util.logging, plain stderr line) instead of `System.err`; `StringBuilder`/constants cleanups; tests for trend KPIs, Jenkins mode, error paths; new-code coverage 88%, 0 new issues | DONE |
 | 43 | **Locale-dependent number formatting** — on non-US default locales `passPctToString` produced `50,00`, crashing trend calculation (`Double.parseDouble`) and breaking chart JS arrays; all `String.format` now use `Locale.US` | DONE |
 | 41 | **Duplicated code (Sonar gate)** — shared `SaxReportParser` base for JUnit/Jenkins parsers (also disables external entities / DTD loading, XXE hardening); `TrendSource` interface for the 1/3/7-day trend getters; `HtmlGen` helpers for page head, KPI cards, dashboard charts, package/module rows and test case rows. Duplication 7.4% -> 0.4%, Sonar quality gate passed | DONE |
+| 22 | **File DB layer** — JSON run store (`--store`, `unitth.store.file`): content-hash run ids, incremental ingest incl. existing XML/CTRF history, retention via `unitth.max.runs` (default 100), regenerate without raw reports; UnitTH self-history (`e2e/self-history.sh`). Code simplified on the way (~2k lines less, identical output) | DONE |

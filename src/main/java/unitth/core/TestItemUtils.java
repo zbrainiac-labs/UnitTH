@@ -4,13 +4,14 @@
 
 package unitth.core;
 
-import java.io.File;
-import java.net.URI;
 import java.text.DateFormat;
-import java.text.ParseException;
 import java.text.SimpleDateFormat;
+import java.util.Arrays;
+import java.util.Comparator;
 import java.util.Date;
 import java.util.Locale;
+import java.util.Map;
+import java.util.function.BiConsumer;
 
 /**
  * Contains core functionality that can be applied to most of the test item
@@ -76,6 +77,16 @@ public class TestItemUtils {
 		return String.format(Locale.US, "%1.2f", passPct);
 	}
 
+	/** Formats a count difference with a leading + when positive. */
+	public static String signed(int diff) {
+		return (diff > 0 ? "+" : "") + diff;
+	}
+
+	/** Formats a pass rate difference with a leading + when positive and a trailing %. */
+	public static String signedPct(double diff) {
+		return (diff > 0 ? "+" : "") + passPctToString(diff) + "%";
+	}
+
 	/**
 	 * This method converts any parsed time stamps so that they all look the
 	 * same in all reports.
@@ -123,6 +134,33 @@ public class TestItemUtils {
 	}
 
 	/**
+	 * Packages are stored flat by dotted name. This folds every package into
+	 * its direct parent, deepest first, so grandchildren reach the root.
+	 * Names are matched case-insensitively.
+	 *
+	 * @param packages
+	 *            Packages keyed by dotted name.
+	 * @param addChildToParent
+	 *            Called with (parent, child).
+	 */
+	public static <V> void foldIntoParents(Map<String, V> packages, BiConsumer<V, V> addChildToParent) {
+		String[] names = packages.keySet().toArray(new String[0]);
+		Arrays.sort(names, Comparator.comparingInt(String::length).reversed());
+		for (String child : names) {
+			int dot = child.lastIndexOf('.');
+			if (dot < 0) {
+				continue;
+			}
+			String parent = child.substring(0, dot);
+			for (String candidate : names) {
+				if (parent.equalsIgnoreCase(candidate) && !candidate.equalsIgnoreCase(child)) {
+					addChildToParent.accept(packages.get(candidate), packages.get(child));
+				}
+			}
+		}
+	}
+
+	/**
 	 * Converts a <code>String</code> object run date to a long value.
 	 * 
 	 * @param runDate
@@ -141,130 +179,6 @@ public class TestItemUtils {
 			// Could not convert this date properly
 			return 0;
 		}
-	}
-
-	/**
-	 * 
-	 * @param dateStamp
-	 *            Must be in the following format dd/MM/yyyy hh:mm:ss.
-	 * @return
-	 */
-	public static String fixFitNesseDateFormat(String dateStamp) {
-		Date date = null;
-
-		// Avoid problems if using the method for already fixed date strings.
-		if (dateStamp.contains("&nbsp;")) {
-			dateStamp = dateStamp.replace("&nbsp;", " ");
-		}
-
-		// Trying format 1
-		try {
-			DateFormat formatter = new SimpleDateFormat("MM/dd/yyyy HH:mm:ss", Locale.US);
-			date = formatter.parse(dateStamp);
-			DateFormat formatter2 = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss",
-					Locale.US);
-			String ret = formatter2.format(date);
-			ret = ret.replace(" ", "&nbsp;");
-			return ret;
-		} catch (ParseException e) { /* continue */
-		} catch (Exception e) {
-			return null;
-		}
-
-		// Trying format 2
-		try {
-			DateFormat formatter = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US);
-			date = formatter.parse(dateStamp);
-			DateFormat formatter2 = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss",
-					Locale.US);
-			String ret = formatter2.format(date);
-			ret = ret.replace(" ", "&nbsp;");
-			return ret;
-		} catch (ParseException e) { 
-			return null;
-		}
-	}
-
-	public static double calculateExecutionTimeDiff(String startDate,
-			String endDate) {
-		
-		Date start = null;
-		Date end = null;
-		startDate = startDate.replace("&nbsp;", " ");
-		endDate = endDate.replace("&nbsp;", " ");
-		DateFormat formatter = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US);
-		try {
-			start = formatter.parse(startDate);
-			end = formatter.parse(endDate);
-		} catch (ParseException dfe) {
-			Log.error("Could not parse date", dfe);
-			return 0.0;
-		}
-		
-		long timeDiff = (end.getTime() - start.getTime()) / 1000; // Milli seconds / 1000
-		return (double)timeDiff;  // seconds
-	}
-
-	/**
-	 * 
-	 * @param path
-	 * @return
-	 */
-	public static String getTestSuiteFolderFromPath(String path) {
-		File f = new File(path);
-		URI fUri = f.toURI();
-		String normalizedPath = fUri.normalize().getPath();
-		if (normalizedPath.charAt(normalizedPath.length() - 1) == '/') {
-			normalizedPath = normalizedPath.substring(0, normalizedPath
-					.length() - 1);
-		}
-
-		int i = normalizedPath.lastIndexOf("/");
-		if (i == -1) {
-			return normalizedPath;
-		}
-		return normalizedPath.substring(i + 1, normalizedPath.length());
-	}
-	
-	/**
-	 * Ripps the test suite part from a full FitNesse test case name.
-	 * @param name The full test case name.
-	 * @return The test suite part of the full FitNesse test case name.
-	 * If null or empty the string undef is returned.
-	 */
-	public static String getFitNesseTestSuiteFromTestCaseName(String name) {
-		if (null == name || name.equals("") || name.equalsIgnoreCase("undef")) {
-			return "undef";
-		}
-		return name.substring(0, name.lastIndexOf("."));
-	}
-	
-	public static String getShortestCommonality(String a, String b) {
-		// They are equal
-		if (a.equalsIgnoreCase(b)) {
-			return a;
-		}
-		
-		// They have nothing in common
-		if (!a.regionMatches(true, 0, b, 0, 1)) {
-			return "root.undef";
-		}
-		
-		// Partly shared
-		int shortest = a.length() > b.length() ? b.length() : a.length();
-		for (int i=1; i<shortest+1; i++) {
-			if (!a.regionMatches(true, 0, b, 0, i)) {
-				// Find the last dot with an index lower than i, 
-				// since it is the last matching character.
-				int idx = a.lastIndexOf(".", i-1);
-				// Could be a mismatch from the start.
-				if (!a.regionMatches(true, 0, b, 0, idx)) {
-					return "root.undef";
-				}
-				return a.substring(0, idx);
-			}
-		}
-		return a.substring(0, shortest);
 	}
 }
 

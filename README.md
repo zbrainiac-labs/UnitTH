@@ -65,6 +65,46 @@ The report is written to `report.th/` by default. Open `report.th/index.html` in
 java -jar unitth.jar -j /path/to/jenkins/jobs/my-job/builds
 ```
 
+### Run store (incremental history)
+
+With `--store <file>` UnitTH keeps every parsed run in a JSON file. Later invocations only parse run folders that are not in the store yet, and the report is always built from the store, so the raw report folders of stored runs can be deleted.
+
+```bash
+# first call: existing (XML or CTRF) history is converted into the store
+java -jar unitth.jar --store history.json --ctrf ./reports/*
+# later calls: only new folders are parsed
+java -jar unitth.jar --store history.json --ctrf ./reports/2026-05-01T080000Z
+# regenerate the report from the store alone
+java -jar unitth.jar --store history.json
+# only add runs, no report
+java -jar unitth.jar --store history.json --ingest-only --ctrf ./reports/*
+```
+
+- A run is identified by a SHA-256 hash of its report files (names + content), so re-ingesting the same reports adds nothing, and a reused folder with new reports is a new run.
+- The store keeps the newest `unitth.max.runs` runs (default 100); dropped runs are remembered and not added again.
+- A store file is never read as report input, even if it lies in a run folder.
+- The output is identical to parsing the raw folders (verified by `StoreModeTest`).
+- Updates hold an exclusive lock: `<store>.lock` is created atomically and removed afterwards, which also works across containers on a shared bind mount, where OS file locks are not seen. Threads in one JVM are serialised in addition. A lock file older than 10 minutes, left by a crashed run, is taken over. If the lock is not free within `unitth.store.lock.timeout` seconds (default 60), the ingest is skipped with a warning and the report is built from the stored runs.
+- Each ingest prints a summary line ending in `ingest=ok`, `ingest=skipped` or `ingest=failed`. Scripts should only delete run folders after `ingest=ok`.
+
+#### One store per project
+
+`--store-dir <dir>` builds the report from every run store in `<dir>`; other files are ignored. Ingest still goes to the `--store` file, so each project can keep its own store and retention while a single report covers all of them:
+
+```bash
+java -jar unitth.jar --store stores/project-one.json --store-dir stores --ctrf ./reports/2026-05-01T080000Z
+# report only, no ingest
+java -jar unitth.jar --store-dir stores
+```
+
+### UnitTH self-history
+
+`e2e/self-history.sh` records UnitTH's own `mvn verify` results (surefire + failsafe) as one run per build in `~/.unitth/unitth-self-store.json` (override with `UNITTH_SELF_STORE`) and renders `target/unitth-self-report/`. It never fails the build.
+
+```bash
+mvn verify && ./e2e/self-history.sh
+```
+
 ### Configuration
 
 Properties are resolved in this order (first match wins):
@@ -74,7 +114,7 @@ Properties are resolved in this order (first match wins):
 3. `unitth.properties` in `$HOME` (only read if there is no file in the working directory)
 4. Built-in defaults
 
-At most the 100 most recent run folders are included in a report.
+At most the 100 most recent run folders are included in a report (`unitth.max.runs`).
 
 | Property | Default | Description |
 |----------|---------|-------------|
@@ -86,6 +126,9 @@ At most the 100 most recent run folders are included in a report.
 | `unitth.generate.exectimegraphs` | `false` | Generate execution time graphs |
 | `unitth.use.absolute.paths` | `false` | Use absolute paths in report links |
 | `unitth.debug` | `false` | Verbose parser output (`-D` flag only) |
+| `unitth.store.file` | (none) | Run store file, same as `--store <file>` |
+| `unitth.max.runs` | `100` | Runs per report and runs kept in the store |
+| `unitth.store.lock.timeout` | `60` | Seconds to wait for the store lock (`-D` flag only) |
 
 Example with `-D` flags:
 
@@ -155,7 +198,8 @@ In both `--ctrf` and default mode, CTRF JSON files are grouped by `results.envir
 | Coverage | `mvn verify` | Report only, no gate: `target/site/jacoco/` (unit), `target/site/jacoco-it/` (E2E) |
 | Golden snapshots | `mvn verify -Dunitth.updateGolden=true -Dtest=none -Dsurefire.failIfNoSpecifiedTests=false` | Regenerates `src/test/resources/golden/*.txt` after an intended output change (unit tests are skipped because `ConcurrencyTest` also reads the golden files) |
 | Manual smoke check | `./runtest.sh` | Shell script, not part of the Maven build |
-| Deployment E2E | `sh e2e/deploy-e2e.sh` | Against the running DataOpsBackbone stack: jar checksum, in-container `--ctrf` run, nginx pages, run limit, packages, test-case tables, dates. Env overrides: `RUNNER`, `BASE_URL`, `MAX_RUNS` |
+| Deployment E2E | `sh e2e/deploy-e2e.sh` | Against the running DataOpsBackbone stack: jar checksum, in-container `--ctrf` run, nginx pages, run limit, packages, test-case tables, dates, store mode (same report as plain, second run `added=0`). `SAVE_BASELINE=<file>` / `BASELINE=<file>` save / compare page metrics. Env overrides: `RUNNER`, `BASE_URL`, `MAX_RUNS`, `STORE` |
+| Self-history | `./e2e/self-history.sh` | UnitTH's own test history from the last `mvn verify` |
 
 ## Project structure
 
@@ -166,6 +210,7 @@ src/main/java/unitth/
   jenkins/       Jenkins report parser
   html/junit/    HTML5 report generator (charts rendered client-side with Chart.js)
   html/          Shared HTML utilities
+  store/         JSON run store (JsonRunStore), content-hash run ids, minimal JSON codec
 src/main/resources/
   css/           Stylesheet
   javascript/    Table sorting script
@@ -174,6 +219,7 @@ src/test/resources/
   junitsamplereport/  Sample XML and CTRF runs used by the tests
   golden/             Golden metric snapshots for ReportE2EIT
 e2e/deploy-e2e.sh    Deployment E2E check against the DataOpsBackbone stack
+e2e/self-history.sh  UnitTH self-history report from its own test results
 runtest.sh           Manual smoke check
 ```
 

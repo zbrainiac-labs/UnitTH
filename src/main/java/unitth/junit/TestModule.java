@@ -18,7 +18,7 @@ import unitth.core.TestItemUtils;
 /**
  *
  */
-public class TestModule extends TestItem implements Comparable<TestModule> {
+public class TestModule extends TestItem implements Comparable<TestModule>, RunCounts {
 
 	private HashMap<String, TestCase> testCases = null;
 	private int noTestCases = 0;
@@ -94,6 +94,16 @@ public class TestModule extends TestItem implements Comparable<TestModule> {
 	 */
 	public void setDate(String timeStamp) {
 		runDate = TestItemUtils.fixDateFormat(timeStamp);
+	}
+
+	/**
+	 * Restores an already formatted run date, e.g. from the run store.
+	 * 
+	 * @param formatted
+	 *            The run date as returned by <code>getExecutionDate</code>.
+	 */
+	public void setFormattedDate(String formatted) {
+		runDate = formatted;
 	}
 
 	/**

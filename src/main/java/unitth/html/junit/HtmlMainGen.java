@@ -7,10 +7,7 @@ import unitth.core.Log;
 import java.io.BufferedWriter;
 import java.io.File;
 import java.io.IOException;
-import java.util.Collection;
-import java.util.Iterator;
 
-import unitth.core.UnitTH;
 import unitth.html.HtmlGenUtils;
 import unitth.junit.TestHistory;
 import unitth.junit.TestModuleSummary;
@@ -23,243 +20,90 @@ public class HtmlMainGen extends HtmlGen {
 		super(history, generateExecTimeGraphs);
 	}
 
+	@Override
 	public void generateHtmlHistory() {
-		generateMainPage();
-	}
-
-	protected void generateMainPage() {
 		String fileName = destDir + File.separator + HTML_MAIN;
-		try (BufferedWriter bwout = createFile(fileName)) {
-			startSortablePage(bwout, "UnitTestHistory - Test History", "run_table", "package_table", "module_table");
-			startBody(bwout);
-			generateHeader(bwout);
-			bwout.write(t(1) + "<main class=\"container\">" + c_LF);
-			generateMainAnchors(bwout);
-			generateKpiStrip(bwout);
-			generateMainRunSummary(bwout);
-			generateMainRunSection(bwout);
-			generateMainPackageSection(bwout);
-			generateMainModuleSection(bwout);
-			generateMainModuleTotals(bwout);
-			bwout.write(t(1) + "</main>" + c_LF);
-			bwout.write(HtmlGenUtils.createArgsDivTag(th.getConfig()));
-			generateFooter(bwout);
-			endBody(bwout);
-			endPage(bwout);
+		try (BufferedWriter out = createFile(fileName)) {
+			startSortablePage(out, "UnitTestHistory - Test History", "run_table", "package_table", "module_table");
+			startMain(out);
+			writeNav(out, "runs", "Runs", "packages", "Packages", "modules", MODULES, "totals", "Totals");
+			generateKpiStrip(out);
+			writeDashboardCharts(out, k -> "chart_main_" + k, chartSeries(tr -> tr), getExecutionTimeUnit(null));
+			generateRunSection(out);
+			generatePackageSection(out);
+			generateModuleSection(out);
+			generateTotals(out);
+			endMain(out, HtmlGenUtils.createArgsDivTag(th.getConfig()));
 		} catch (IOException e) {
 			Log.error("Error writing " + fileName, e);
 		}
 	}
 
-	private void generateMainAnchors(BufferedWriter out) throws IOException {
-		out.write(t(2) + "<nav class=\"nav-bar\">" + c_LF);
-		out.write(t(3) + "<a href=\"#runs\">Runs</a>" + c_LF);
-		out.write(t(3) + "<a href=\"#packages\">Packages</a>" + c_LF);
-		out.write(t(3) + "<a href=\"#modules\">Modules</a>" + c_LF);
-		out.write(t(3) + "<a href=\"#totals\">Totals</a>" + c_LF);
-		out.write(t(2) + "</nav>" + c_LF);
-	}
-
 	private void generateKpiStrip(BufferedWriter buf) throws IOException {
-		buf.write(t(2) + "<div class=\"kpi-strip\">" + c_LF);
+		buf.write(t(2) + "<div class=\"kpi-strip\">" + LF);
 		writeKpi(buf, "Total Runs", String.valueOf(th.getNoRuns()), "", "accent");
-		writeKpi(buf, "Test Cases", String.valueOf(th.getNoUniqueTestCases()), th.getNoIgnoredTestCases() + " ignored", "");
-		writeKpi(buf, "Modules", String.valueOf(th.getNoUniqueModules()), th.getNoPackages() + " package(s)", "");
-		double avgPct = th.getAvePassPctDouble();
-		String pctColor = avgPct >= 99.0 ? "green" : avgPct >= 80.0 ? "accent" : "red";
-		writeKpi(buf, "Avg Pass Rate", pctText(th.getAvePassPct()), "Best: " + pctText(th.getBestRun()) + " / Worst: " + pctText(th.getWorstRun()), pctColor);
+		writeKpi(buf, TEST_CASES, String.valueOf(th.getNoUniqueTestCases()), th.getNoIgnoredTestCases() + " ignored", "");
+		writeKpi(buf, MODULES, String.valueOf(th.getNoUniqueModules()), th.getNoPackages() + " package(s)", "");
+		writePassRateKpi(buf, th.getAvePassPctDouble(), th.getAvePassPct(), th.getBestRun(), th.getWorstRun());
 		String[] parts = th.getLastRun().split("&nbsp;");
 		String lastRun = parts.length == 2 ? parts[0] + "<br>" + parts[1] : th.getLastRun();
 		writeKpi(buf, "Last Run", lastRun, "", "");
-		buf.write(t(2) + "</div>" + c_LF);
+		buf.write(t(2) + DIV_END + LF);
 	}
 
-	private void generateMainRunSummary(BufferedWriter buf) throws IOException {
-		buf.write(t(2) + "<section class=\"dashboard\">" + c_LF);
-		buf.write(t(3) + "<div class=\"dashboard-grid\">" + c_LF);
-		String labels = buildRunLabelsJson();
-		buf.write(t(4) + "<div class=\"card\">" + c_LF);
-		buf.write(t(5) + "<h3 class=\"card-header\">Pass Rates</h3>" + c_LF);
-		writeChartCanvas(buf, "chart_main_pr", 160);
-		writeBarChart(buf, "chart_main_pr", "Pass %", labels, buildPassRateDataJson(),
-			"rgba(16,185,129,0.65)", "rgba(52,211,153,0.9)", buildPassRateFailDataJson(), 100);
-		buf.write(t(5) + "<h3 class=\"card-header\">Test Case Count</h3>" + c_LF);
-		writeChartCanvas(buf, "chart_main_tc", 100);
-		writeAreaChart(buf, "chart_main_tc", "Test Cases", labels, buildTestCaseCountDataJson(),
-			"rgba(16,185,129,0.15)", "rgba(52,211,153,0.9)");
-		buf.write(t(4) + "</div>" + c_LF);
-
-		buf.write(t(4) + "<div class=\"card\">" + c_LF);
-		if (generateExecTimeGraphs) {
-			buf.write(t(5) + "<h3 class=\"card-header\">Execution Times (" + getExecutionTimeUnit(null) + ")</h3>" + c_LF);
-			writeChartCanvas(buf, "chart_main_et", 120);
-			writeAreaChart(buf, "chart_main_et", "Exec Time", labels, buildExecTimeDataJson(),
-				"rgba(59,130,246,0.15)", "rgba(59,130,246,0.9)");
-		}
-		buf.write(t(5) + "<h3 class=\"card-header\">Non-Passing Test Cases</h3>" + c_LF);
-		writeChartCanvas(buf, "chart_main_fn", 100);
-		writeAreaChart(buf, "chart_main_fn", "Failures", labels, buildFailureCountDataJson(),
-			"rgba(239,68,68,0.15)", "rgba(239,68,68,0.9)");
-		buf.write(t(4) + "</div>" + c_LF);
-
-		buf.write(t(3) + "</div>" + c_LF);
-		buf.write(t(2) + "</section>" + c_LF);
-	}
-
-	private void generateMainRunSection(BufferedWriter buf) throws IOException {
-		buf.write(t(2) + "<span id=\"runs\" class=\"section-anchor\"></span>" + c_LF);
-		buf.write(t(2) + "<div class=\"section-heading\">" + c_LF);
-		buf.write(t(3) + "<h3>Runs</h3>" + c_LF);
-		buf.write(t(3) + "<span class=\"section-badge\">" + th.getNoRuns() + " runs</span>" + c_LF);
-		buf.write(t(2) + "</div>" + c_LF);
-		buf.write(t(2) + "<p class=\"section-desc\">Click on a run to open its HTML test report.</p>" + c_LF);
-		generateMainRunList(buf);
-	}
-
-	private void generateMainPackageSection(BufferedWriter buf) throws IOException {
-		buf.write(t(2) + "<span id=\"packages\" class=\"section-anchor\"></span>" + c_LF);
-		buf.write(t(2) + "<div class=\"section-heading\">" + c_LF);
-		buf.write(t(3) + "<h3>Packages</h3>" + c_LF);
-		buf.write(t(3) + "<span class=\"section-badge\">" + th.getNoPackages() + " packages</span>" + c_LF);
-		buf.write(t(2) + "</div>" + c_LF);
-		buf.write(t(2) + "<p class=\"section-desc\">Statistics per test package. Click the package name for details.</p>" + c_LF);
-		generateMainPackageList(buf);
-	}
-
-	private void generateMainModuleSection(BufferedWriter buf) throws IOException {
-		buf.write(t(2) + "<span id=\"modules\" class=\"section-anchor\"></span>" + c_LF);
-		buf.write(t(2) + "<div class=\"section-heading\">" + c_LF);
-		buf.write(t(3) + "<h3>Modules</h3>" + c_LF);
-		buf.write(t(3) + "<span class=\"section-badge\">" + th.getNoUniqueModules() + " modules</span>" + c_LF);
-		buf.write(t(2) + "</div>" + c_LF);
-		buf.write(t(2) + "<p class=\"section-desc\">Average pass rate per test module. Click the module name for details.</p>" + c_LF);
-		generateMainModuleList(buf);
-	}
-
-	private void generateMainRunList(BufferedWriter buf) throws IOException {
-		buf.write(t(2) + "<table id=\"run_table\" class=\"sortable\">" + c_LF);
-		buf.write(t(3) + "<thead>" + c_LF);
-		buf.write(t(4) + "<tr>" + c_LF);
-		buf.write(t(5) + "<th>Run</th>" + c_LF);
-		buf.write(t(5) + "<th>Path</th>" + c_LF);
-		buf.write(t(5) + "<th>Tests</th>" + c_LF);
-		buf.write(t(5) + "<th>Pass</th>" + c_LF);
-		buf.write(t(5) + "<th>Error</th>" + c_LF);
-		buf.write(t(5) + "<th>Fail</th>" + c_LF);
-		buf.write(t(5) + "<th>Ignored</th>" + c_LF);
-		buf.write(t(5) + "<th>Exec Date</th>" + c_LF);
-		buf.write(t(5) + "<th>Exec Time</th>" + c_LF);
-		buf.write(t(5) + "<th colspan=\"2\">Total</th>" + c_LF);
-		buf.write(t(4) + "</tr>" + c_LF);
-		buf.write(t(3) + "</thead>" + c_LF);
-		buf.write(t(3) + "<tbody>" + c_LF);
+	private void generateRunSection(BufferedWriter buf) throws IOException {
+		writeSection(buf, "runs", "Runs", th.getNoRuns() + " runs", "Click on a run to open its HTML test report.");
+		startTable(buf, "run_table", 4, "Run", "Path", "Tests", PASS, ERROR, FAIL, IGNORED, "Exec Date", EXEC_TIME, TOTAL);
 		int idx = th.getNoRuns();
 		for (TestRun tr : th.getRuns()) {
-			String idxStr = HtmlGenUtils.calculateRunIdxString(th.getNoRuns(), idx);
-			String runName = getHtmlReportLink(tr, "Run-" + idxStr);
-			buf.write(t(4) + "<tr>" + c_LF);
-			buf.write(t(5) + "<td>" + runName + "</td>" + c_LF);
-			buf.write(t(5) + "<td class=\"text-left mono\">" + tr.getChosenPath() + "</td>" + c_LF);
-			buf.write(t(5) + "<td>" + tr.getNoTestCases() + "</td>" + c_LF);
-			buf.write(t(5) + "<td>" + tr.getNoPassed() + "</td>" + c_LF);
-			buf.write(t(5) + "<td>" + tr.getNoErrors() + "</td>" + c_LF);
-			buf.write(t(5) + "<td>" + tr.getNoFailures() + "</td>" + c_LF);
-			buf.write(t(5) + "<td>" + tr.getNoIgnored() + "</td>" + c_LF);
-			buf.write(t(5) + "<td>" + tr.getExecutionDate() + "</td>" + c_LF);
-			buf.write(t(5) + "<td class=\"mono\">" + tr.getExecutionTime() + "</td>" + c_LF);
-			buf.write(t(5) + "<td class=\"text-right\">" + pctText(tr.getPassPct()) + "</td>" + c_LF);
-			buf.write(t(5) + "<td class=\"graphBar\">" + pctBarHtml(tr.getPassPctDouble(), tr.getPassPct()) + "</td>" + c_LF);
-			buf.write(t(4) + "</tr>" + c_LF);
+			writeRunRow(buf, tr, tr, idx, true);
 			idx--;
 		}
-		buf.write(t(3) + "</tbody>" + c_LF);
-		buf.write(t(2) + "</table>" + c_LF);
+		endTable(buf);
 	}
 
-	private void generateMainPackageList(BufferedWriter buf) throws IOException {
-		buf.write(t(2) + "<table id=\"package_table\" class=\"sortable\">" + c_LF);
-		buf.write(t(3) + "<thead>" + c_LF);
-		buf.write(t(4) + "<tr>" + c_LF);
-		buf.write(t(5) + "<th>Package Name</th>" + c_LF);
-		buf.write(t(5) + "<th>Runs</th>" + c_LF);
-		buf.write(t(5) + "<th>Modules</th>" + c_LF);
-		buf.write(t(5) + "<th>Tests</th>" + c_LF);
-		buf.write(t(5) + "<th>Executed</th>" + c_LF);
-		buf.write(t(5) + "<th>Pass</th>" + c_LF);
-		buf.write(t(5) + "<th>Error</th>" + c_LF);
-		buf.write(t(5) + "<th>Fail</th>" + c_LF);
-		buf.write(t(5) + "<th>Ignored</th>" + c_LF);
-		buf.write(t(5) + "<th>Exec Time</th>" + c_LF);
-		buf.write(t(5) + "<th colspan=\"2\">Total</th>" + c_LF);
-		buf.write(t(4) + "</tr>" + c_LF);
-		buf.write(t(3) + "</thead>" + c_LF);
-		buf.write(t(3) + "<tbody>" + c_LF);
+	private void generatePackageSection(BufferedWriter buf) throws IOException {
+		writeSection(buf, "packages", "Packages", th.getNoPackages() + " packages",
+			"Statistics per test package. Click the package name for details.");
+		startTable(buf, "package_table", 4, withNameColumns("Package Name", "Runs", MODULES));
 		for (TestPackageSummary tps : th.getTestPackageSummaries().values()) {
-			if (null == tps) continue;
 			writePackageRow(buf, tps);
 		}
-		buf.write(t(3) + "</tbody>" + c_LF);
-		buf.write(t(2) + "</table>" + c_LF);
+		endTable(buf);
 	}
 
-	private void generateMainModuleList(BufferedWriter buf) throws IOException {
-		buf.write(t(2) + "<table id=\"module_table\" class=\"sortable\">" + c_LF);
-		buf.write(t(3) + "<thead>" + c_LF);
-		buf.write(t(4) + "<tr>" + c_LF);
-		buf.write(t(5) + "<th>Module Name</th>" + c_LF);
-		buf.write(t(5) + "<th>Runs</th>" + c_LF);
-		buf.write(t(5) + "<th>Tests</th>" + c_LF);
-		buf.write(t(5) + "<th>Executed</th>" + c_LF);
-		buf.write(t(5) + "<th>Pass</th>" + c_LF);
-		buf.write(t(5) + "<th>Error</th>" + c_LF);
-		buf.write(t(5) + "<th>Fail</th>" + c_LF);
-		buf.write(t(5) + "<th>Ignored</th>" + c_LF);
-		buf.write(t(5) + "<th>Exec Time</th>" + c_LF);
-		buf.write(t(5) + "<th colspan=\"2\">Total</th>" + c_LF);
-		buf.write(t(4) + "</tr>" + c_LF);
-		buf.write(t(3) + "</thead>" + c_LF);
-		buf.write(t(3) + "<tbody>" + c_LF);
+	private void generateModuleSection(BufferedWriter buf) throws IOException {
+		writeSection(buf, "modules", MODULES, th.getNoUniqueModules() + " modules",
+			"Average pass rate per test module. Click the module name for details.");
+		startTable(buf, "module_table", 4, withNameColumns("Module Name", "Runs"));
 		for (TestModuleSummary tms : th.getTestModuleSummaries().values()) {
-			if (null == tms) continue;
 			writeModuleRow(buf, tms);
 		}
-		buf.write(t(3) + "</tbody>" + c_LF);
-		buf.write(t(2) + "</table>" + c_LF);
+		endTable(buf);
 	}
 
-	private void generateMainModuleTotals(BufferedWriter buf) throws IOException {
-		buf.write(t(2) + "<span id=\"totals\" class=\"section-anchor\"></span>" + c_LF);
-		buf.write(t(2) + "<div class=\"section-heading\">" + c_LF);
-		buf.write(t(3) + "<h3>Execution Totals</h3>" + c_LF);
-		buf.write(t(2) + "</div>" + c_LF);
-		buf.write(t(2) + "<p class=\"section-desc\">Aggregate of all executed tests across all runs.</p>" + c_LF);
-		buf.write(t(2) + "<table>" + c_LF);
-		buf.write(t(3) + "<thead>" + c_LF);
-		buf.write(t(4) + "<tr>" + c_LF);
-		buf.write(t(5) + "<th>Run</th>" + c_LF);
-		buf.write(t(5) + "<th>Tests</th>" + c_LF);
-		buf.write(t(5) + "<th>Pass</th>" + c_LF);
-		buf.write(t(5) + "<th>Error</th>" + c_LF);
-		buf.write(t(5) + "<th>Fail</th>" + c_LF);
-		buf.write(t(5) + "<th>Ignored</th>" + c_LF);
-		buf.write(t(5) + "<th>Exec Time</th>" + c_LF);
-		buf.write(t(5) + "<th colspan=\"2\">Total</th>" + c_LF);
-		buf.write(t(4) + "</tr>" + c_LF);
-		buf.write(t(3) + "</thead>" + c_LF);
-		buf.write(t(3) + "<tbody>" + c_LF);
-		buf.write(t(4) + "<tr>" + c_LF);
-		buf.write(t(5) + "<td><strong>TOTALS</strong></td>" + c_LF);
-		buf.write(t(5) + "<td>" + th.getNoExecutedTestCases() + "</td>" + c_LF);
-		buf.write(t(5) + "<td>" + th.getNoPassedTestCases() + "</td>" + c_LF);
-		buf.write(t(5) + "<td>" + th.getNoErrorTestCases() + "</td>" + c_LF);
-		buf.write(t(5) + "<td>" + th.getNoFailedTestCases() + "</td>" + c_LF);
-		buf.write(t(5) + "<td>" + th.getNoIgnoredTestCases() + "</td>" + c_LF);
-		buf.write(t(5) + "<td class=\"mono\">" + th.getTotalExecutionTime() + "</td>" + c_LF);
-		buf.write(t(5) + "<td class=\"text-right\"><strong>" + pctText(th.getAvePassPct()) + "</strong></td>" + c_LF);
-		buf.write(t(5) + "<td class=\"graphBar\">" + pctBarHtml(th.getAvePassPctDouble(), th.getAvePassPct()) + "</td>" + c_LF);
-		buf.write(t(4) + "</tr>" + c_LF);
-		buf.write(t(3) + "</tbody>" + c_LF);
-		buf.write(t(2) + "</table>" + c_LF);
+	/** Leading name columns followed by the shared summary count headers. */
+	static String[] withNameColumns(String... first) {
+		String[] all = new String[first.length + SUMMARY_COUNT_HEADERS.length];
+		System.arraycopy(first, 0, all, 0, first.length);
+		System.arraycopy(SUMMARY_COUNT_HEADERS, 0, all, first.length, SUMMARY_COUNT_HEADERS.length);
+		return all;
 	}
 
+	private void generateTotals(BufferedWriter buf) throws IOException {
+		writeSection(buf, "totals", "Execution Totals", null, "Aggregate of all executed tests across all runs.");
+		startTable(buf, null, 4, "Run", "Tests", PASS, ERROR, FAIL, IGNORED, EXEC_TIME, TOTAL);
+		buf.write(t(4) + "<tr>" + LF);
+		buf.write(t(5) + "<td><strong>TOTALS</strong>" + TD_END);
+		buf.write(t(5) + "<td>" + th.getNoExecutedTestCases() + TD_END);
+		buf.write(t(5) + "<td>" + th.getNoPassedTestCases() + TD_END);
+		buf.write(t(5) + "<td>" + th.getNoErrorTestCases() + TD_END);
+		buf.write(t(5) + "<td>" + th.getNoFailedTestCases() + TD_END);
+		buf.write(t(5) + "<td>" + th.getNoIgnoredTestCases() + TD_END);
+		buf.write(t(5) + TD_MONO + th.getTotalExecutionTime() + TD_END);
+		buf.write(t(5) + "<td class=\"text-right\"><strong>" + pctText(th.getAvePassPct()) + "</strong>" + TD_END);
+		buf.write(t(5) + "<td class=\"graphBar\">" + pctBarHtml(th.getAvePassPctDouble(), th.getAvePassPct()) + TD_END);
+		buf.write(t(4) + TR_END + LF);
+		endTable(buf);
+	}
 }

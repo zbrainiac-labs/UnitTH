@@ -60,15 +60,9 @@ public class HtmlGenUtils {
 		return ret.toString();
 	}
 
+	/** Zero-pads a run index to the width of the run count. */
 	public static String calculateRunIdxString(int noRuns, int idx) {
-		String noRunsStr = String.valueOf(noRuns);
 		String idxStr = String.valueOf(idx);
-
-		int diff = noRunsStr.length() - idxStr.length();
-		String retStr = "";
-		for (int i = 0; i < diff; i++) {
-			retStr += "0";
-		}
-		return retStr + idxStr;
+		return "0".repeat(Math.max(0, String.valueOf(noRuns).length() - idxStr.length())) + idxStr;
 	}
 }

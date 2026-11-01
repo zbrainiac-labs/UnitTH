@@ -7,12 +7,8 @@ package unitth.junit;
 import unitth.core.Log;
 import java.io.File;
 import java.net.URI;
-import java.util.Arrays;
-import java.util.Collection;
 import java.util.HashMap;
-import java.util.Iterator;
 
-import unitth.core.CustomStringLengthComparator;
 import unitth.core.TestItemUtils;
 import unitth.core.UnitTHConfig;
 
@@ -21,7 +17,7 @@ import unitth.core.UnitTHConfig;
  * all the statistics parsed for an executed run.
  * 
  */
-public class TestRun extends TestItem implements Comparable<TestRun> {
+public class TestRun extends TestItem implements Comparable<TestRun>, RunCounts {
 
 	/* runDate (lowest module time stamp) is inherited from TestItem. */
 	/* The <code>HashMap</code> holding all the test packages in this test run. */
@@ -126,13 +122,8 @@ public class TestRun extends TestItem implements Comparable<TestRun> {
 	 */
 	public HashMap<String, TestModule> getTestModules() {
 
-		HashMap<String, TestModule> tms = new HashMap<String, TestModule>();
-
-		Collection<TestPackage> c = testPackages.values();
-		Iterator<TestPackage> iter = c.iterator();
-
-		while (iter.hasNext()) {
-			TestPackage tp = iter.next();
+		HashMap<String, TestModule> tms = new HashMap<>();
+		for (TestPackage tp : testPackages.values()) {
 			tms.putAll(tp.getTestModules());
 		}
 		return tms;
@@ -282,11 +273,7 @@ public class TestRun extends TestItem implements Comparable<TestRun> {
 	 * @see unitth.core.TestModule#calcStats()
 	 */
 	public void calcStats() {
-		Collection<TestPackage> c = testPackages.values();
-		Iterator<TestPackage> iter = c.iterator();
-
-		while (iter.hasNext()) {
-			TestPackage tp = iter.next();
+		for (TestPackage tp : testPackages.values()) {
 			tp.calcStats();
 
 			noTestCases += tp.getNoTestCases();
@@ -318,31 +305,8 @@ public class TestRun extends TestItem implements Comparable<TestRun> {
 			passPct = ((double) noPassed / (double) noTestCases) * 100;
 		}
 
-		//
-		// Test packages are stored flat - lets fake a tree structure
-		//
-		// 1) Get a list of sorted keys.
-		// 2) For every package where there is a sub match in name we increment.
-		//
-		String[] packageNames = testPackages.keySet().toArray(new String[0]);
-		Arrays.sort(packageNames, new CustomStringLengthComparator());
-		
-		for (String s1 : packageNames) {
-			for (String s2 : packageNames) {
-				// We do not want to increment the same
-				if (!s1.equalsIgnoreCase(s2)) {
-					
-					// Trim s1 one level!
-					if (s1.contains(".")) {
-						String parent = s1.substring(0, s1.lastIndexOf("."));
-						if (parent.equalsIgnoreCase(s2)) {
-							testPackages.get(s2).addFrom(testPackages.get(s1));
-						}
-					}
-				}
-			}
-		}
-		
+		TestItemUtils.foldIntoParents(testPackages, TestPackage::addFrom);
+
 		// All set, what has been parsed...
 		if (config.debug()) {
 			System.out.println("Parsed: tcs " + noTestCases + " e " + noErrors
@@ -451,18 +415,8 @@ public class TestRun extends TestItem implements Comparable<TestRun> {
 	 */
 	public void setRelativePathFromOutputDir(String destDir,
 			String junitHtmlReportPath) {
-
-		File theIndexFile = new File(destDir + File.separator + runPath
-				+ File.separator + junitHtmlReportPath + File.separator
-				+ INDEX_HTML);
-
-		if (!theIndexFile.exists()) {
-			if (config.debug()) {
-				System.err
-						.println("index.html file ("
-								+ theIndexFile
-								+ ") could not be found, no HTML report link will be created.");
-			}
+		File theIndexFile = findIndexFile(destDir, junitHtmlReportPath);
+		if (theIndexFile == null) {
 			return;
 		}
 
@@ -492,23 +446,27 @@ public class TestRun extends TestItem implements Comparable<TestRun> {
 
 	public void setAbsolutePath(String destDir,
 			String junitHtmlReportPath) {
+		File theIndexFile = findIndexFile(destDir, junitHtmlReportPath);
+		if (theIndexFile != null) {
+			absolutePath = theIndexFile.toURI().normalize().getPath();
+		}
+	}
+
+	/* The JUnit HTML index of this run, or null when there is none. */
+	private File findIndexFile(String destDir, String junitHtmlReportPath) {
 		File theIndexFile = new File(destDir + File.separator + runPath
 				+ File.separator + junitHtmlReportPath + File.separator
 				+ INDEX_HTML);
-		
-		if (!theIndexFile.exists()) {
-			if (config.debug()) {
-				System.err
-						.println("index.html file ("
-								+ theIndexFile
-								+ ") could not be found, no HTML report link will be created.");
-			}
-			return;
+		if (theIndexFile.exists()) {
+			return theIndexFile;
 		}
-		URI indexUri = theIndexFile.toURI();
-		absolutePath = indexUri.normalize().getPath();
+		if (config.debug()) {
+			Log.warn("index.html file (" + theIndexFile
+					+ ") could not be found, no HTML report link will be created.");
+		}
+		return null;
 	}
-	
+
 	/**
 	 * Sets the run index for this test run.
 	 * 
@@ -517,11 +475,7 @@ public class TestRun extends TestItem implements Comparable<TestRun> {
 	 */
 	public void setRunIdx(int idx) {
 		runIdx = idx;
-		try {
-			setName("Run-" + Integer.toString(idx));
-		} catch (NumberFormatException nfe) {
-			setName("Run-N");
-		}
+		setName("Run-" + idx);
 	}
 	
 	/**
@@ -550,24 +504,21 @@ public class TestRun extends TestItem implements Comparable<TestRun> {
 	 * @see java.lang.Object#toString()
 	 */
 	public String toString() {
-		String buf = "-+- Test run -+-\n";
-		buf += "Execution timestamp: " + runDate + "\n";
-		buf += "No test packages: " + testPackages.size() + "\n";
-		buf += "No test modules: " + noTestModules + "\n";
-		buf += "No test cases: " + noTestCases + "\n";
-		buf += "No errors: " + noErrors + "\n";
-		buf += "No failures: " + noFailures + "\n";
-		buf += "No passes: " + noPassed;
-		if (testPackages.size() > 0) {
-			buf += "\n";
+		StringBuilder buf = new StringBuilder("-+- Test run -+-\n")
+				.append("Execution timestamp: ").append(runDate).append('\n')
+				.append("No test packages: ").append(testPackages.size()).append('\n')
+				.append("No test modules: ").append(noTestModules).append('\n')
+				.append("No test cases: ").append(noTestCases).append('\n')
+				.append("No errors: ").append(noErrors).append('\n')
+				.append("No failures: ").append(noFailures).append('\n')
+				.append("No passes: ").append(noPassed);
+		if (!testPackages.isEmpty()) {
+			buf.append('\n');
 		}
-
-		Collection<TestPackage> c = testPackages.values();
-		Iterator<TestPackage> iter = c.iterator();
-		while (iter.hasNext()) {
-			buf += iter.next().toString() + "\n";
+		for (TestPackage tp : testPackages.values()) {
+			buf.append(tp).append('\n');
 		}
-		return buf;
+		return buf.toString();
 	}
 
 	/**

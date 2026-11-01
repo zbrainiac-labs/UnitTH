@@ -42,4 +42,13 @@ public final class Log {
 	public static void error(String message, Throwable t) {
 		LOGGER.log(Level.SEVERE, () -> message + ": " + t);
 	}
+
+	public static void warn(String message) {
+		LOGGER.log(Level.WARNING, message);
+	}
+
+	/** User-facing command line output (usage, progress, result) on stdout. */
+	public static void out(String message) {
+		System.out.println(message); // NOSONAR stdout is the CLI's output channel, not logging
+	}
 }

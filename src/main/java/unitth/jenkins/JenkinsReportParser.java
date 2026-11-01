@@ -8,13 +8,12 @@ import java.io.File;
 import org.xml.sax.Attributes;
 import org.xml.sax.SAXException;
 
+import unitth.core.Log;
 import unitth.core.UnitTHConfig;
 import unitth.core.UnitTHException;
 import unitth.junit.TestCase;
 import unitth.junit.TestCaseVerdict;
-import unitth.junit.TestHistory;
 import unitth.junit.TestModule;
-import unitth.junit.TestPackage;
 import unitth.junit.SaxReportParser;
 
 /**
@@ -25,14 +24,14 @@ import unitth.junit.SaxReportParser;
  */
 public class JenkinsReportParser extends SaxReportParser {
 
-	private final String c_XML_TAG_TESTSUITE = "name";
-	private final String c_XML_TAG_TESTSUITE_END = "suite";
-	private final String c_XML_TAG_TESTCASE_NAME = "testName";
-	private final String c_XML_TAG_TESTCASE = "case";
-	private final String c_XML_TAG_CLASSNAME = "className";
-	private final String c_XML_TAG_VERDICT = "failedSince";
-	private final String c_XML_TAG_DURATION = "duration";
-	private final String c_XML_TAG_LAUNCH_TIMESTAMP = "timestamp";
+	private static final String TAG_TESTSUITE = "name";
+	private static final String TAG_TESTSUITE_END = "suite";
+	private static final String TAG_TESTCASE_NAME = "testName";
+	private static final String TAG_TESTCASE = "case";
+	private static final String TAG_CLASSNAME = "className";
+	private static final String TAG_VERDICT = "failedSince";
+	private static final String TAG_DURATION = "duration";
+	private static final String TAG_LAUNCH_TIMESTAMP = "timestamp";
 
 	private boolean inTestCase = false;
 
@@ -41,13 +40,13 @@ public class JenkinsReportParser extends SaxReportParser {
 	private TestModule currentTestModule = null;
 	private TestCase currentTestCase = null;
 
-	private StringBuffer moduleName = null;
-	private StringBuffer moduleDuration = null;
-	private StringBuffer moduleTimestamp = null;
-	private StringBuffer tcName = null;
-	private StringBuffer tcClass = null;
-	private StringBuffer tcVerdict = null;
-	private StringBuffer tcDuration = null;
+	private StringBuilder moduleName = null;
+	private StringBuilder moduleDuration = null;
+	private StringBuilder moduleTimestamp = null;
+	private StringBuilder tcName = null;
+	private StringBuilder tcClass = null;
+	private StringBuilder tcVerdict = null;
+	private StringBuilder tcDuration = null;
 	
 	/**
 	 * The ReportParser Ctor, creates a new parser and initializes the test
@@ -60,21 +59,21 @@ public class JenkinsReportParser extends SaxReportParser {
 	public void characters(char ch[], int start, int length)
 			throws SAXException {
 		
-		if (currentElement.equals(c_XML_TAG_TESTSUITE)) {
+		if (currentElement.equals(TAG_TESTSUITE)) {
 			moduleName.append(new String(ch, start, length));
-		} else if (currentElement.equals(c_XML_TAG_DURATION)) {
+		} else if (currentElement.equals(TAG_DURATION)) {
 			if (inTestCase) {
 				tcDuration.append(new String(ch, start, length));
 			} else {
 				moduleDuration.append(new String(ch, start, length));
 			}
-		} else if (currentElement.equals(c_XML_TAG_LAUNCH_TIMESTAMP)) {
+		} else if (currentElement.equals(TAG_LAUNCH_TIMESTAMP)) {
 			moduleTimestamp.append(new String(ch, start, length));
-		} else if (currentElement.equals(c_XML_TAG_TESTCASE_NAME)) {
+		} else if (currentElement.equals(TAG_TESTCASE_NAME)) {
 			tcName.append(new String(ch, start, length));
-		} else if (currentElement.equals(c_XML_TAG_CLASSNAME)) {
+		} else if (currentElement.equals(TAG_CLASSNAME)) {
 			tcClass.append(new String(ch, start, length));
-		} else if (currentElement.equals(c_XML_TAG_VERDICT)) {
+		} else if (currentElement.equals(TAG_VERDICT)) {
 			tcVerdict.append(new String(ch, start, length));
 		}
 	}
@@ -95,23 +94,23 @@ public class JenkinsReportParser extends SaxReportParser {
 		if ("".equals(currentElement)) {
 			currentElement = qName; // not namespace-aware
 		}
-		if (currentElement.equals(c_XML_TAG_TESTCASE)) {
+		if (currentElement.equals(TAG_TESTCASE)) {
 			inTestCase = true;
 			currentTestCase = new TestCase();
 			
-			tcName = new StringBuffer();
-			tcClass = new StringBuffer();
-			tcVerdict = new StringBuffer();
-			tcDuration = new StringBuffer();
+			tcName = new StringBuilder();
+			tcClass = new StringBuilder();
+			tcVerdict = new StringBuilder();
+			tcDuration = new StringBuilder();
 		}
 		
-		if (currentElement.equals(c_XML_TAG_TESTSUITE)) {
+		if (currentElement.equals(TAG_TESTSUITE)) {
 			currentTestModule = new TestModule();
 			
 			// Creating buffers for the characters calls to fill in.
-			moduleName = new StringBuffer();
-			moduleDuration = new StringBuffer();
-			moduleTimestamp = new StringBuffer();
+			moduleName = new StringBuilder();
+			moduleDuration = new StringBuilder();
+			moduleTimestamp = new StringBuilder();
 		}
 	}
 
@@ -131,30 +130,15 @@ public class JenkinsReportParser extends SaxReportParser {
 			eName = qName; // not namespace-aware
 		}
 		
-		if (c_XML_TAG_TESTSUITE_END.equals(eName)) {
+		if (TAG_TESTSUITE_END.equals(eName)) {
 			currentTestModule.setName(moduleName.toString().trim());
 			currentTestModule.setDate(moduleTimestamp.toString().trim());
 			currentTestModule.setExecutionTime(moduleDuration.toString().trim());
-			
-			String packageName = moduleName.toString().trim();
-			if (packageName.contains(".")) {
-				packageName = packageName.substring(0, packageName.lastIndexOf("."));
-			}
-			
-			TestPackage tp = null;
-			if (!parsedTestPackages.containsKey(packageName)) {
-				tp = new TestPackage();
-				tp.setName(packageName);
-				parsedTestPackages.put(packageName, tp);
-			}
-			
 			addToPackage(currentTestModule);
-			//currentTestModule.calcStats();
-			currentTestRun.addTestPackages(parsedTestPackages);
 			currentTestModule = null;
 		} 
 
-		else if (c_XML_TAG_TESTCASE.equals(eName)) {
+		else if (TAG_TESTCASE.equals(eName)) {
 			currentTestCase.setName(tcName.toString().trim());
 			currentTestCase.setClassName(tcClass.toString().trim());
 			currentTestCase.setModuleName(currentTestModule.getName());
@@ -191,7 +175,7 @@ public class JenkinsReportParser extends SaxReportParser {
 			// If there are no time stamps included in the report format the
 			// last modification time of the parsed file will be used.
 		} catch (UnitTHException jte) {
-			System.err.println(jte.getMessage());
+			Log.error(jte.getMessage());
 		}
 	}
 }

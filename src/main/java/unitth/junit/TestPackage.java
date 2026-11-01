@@ -9,7 +9,7 @@ import java.util.Iterator;
 
 import unitth.core.TestItemUtils;
 
-public class TestPackage extends TestItem {
+public class TestPackage extends TestItem implements RunCounts {
 
 	/** All unique tests modules in this package. */
 	private int noTestModulesRec = 0;

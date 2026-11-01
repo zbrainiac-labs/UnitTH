@@ -17,7 +17,7 @@ import org.junit.jupiter.api.io.TempDir;
 
 import unitth.core.UnitTH;
 import unitth.junit.TestHistory;
-import unitth.junit.TestItemSummary;
+import unitth.junit.TestGroupSummary;
 
 /**
  * Trend KPIs compare the newest run with the newest run that is older than
@@ -62,7 +62,7 @@ class TrendTest {
 		assertThat(h.getPrTrendLast3Days()).endsWith("%").startsWith("-50");
 		assertThat(h.getPrTrendLast7Days()).endsWith("%").startsWith("-50");
 
-		for (TestItemSummary s : new TestItemSummary[] { h.getTestPackageSummary("o_r"),
+		for (TestGroupSummary<?> s : new TestGroupSummary<?>[] { h.getTestPackageSummary("o_r"),
 				h.getTestModuleSummary("o_r.S") }) {
 			assertThat(s.getTcTrendLastDay()).isEqualTo("+1");
 			assertThat(s.getTcTrendLast3Days()).isEqualTo("+1");

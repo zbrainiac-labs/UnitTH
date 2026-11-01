@@ -166,33 +166,6 @@ public class TestCaseSummary extends TestItemSummary {
 		return className.substring(0, liof);
 	}
 
-	//
-	// TODO, VX.XNever used. Find a better for inheritance here.
-	//
-	public String getFnTrend(long trendInterval) {
-		return "";
-	}
-
-	public String getTcTrend(long trendInterval) {
-		return "";
-	}
-
-	public String getPrTrend(long trendInterval) {
-		return "";
-	}
-
-	protected String getPrDiff(int runs, int idx) {
-		return "";
-	}
-
-	public double getLargestExecutionTime() {
-		return 69.69;
-	}
-
-	public int getLargestNumberOfTcs() {
-		return 69;
-	}
-
 	public String getClassPlusTestCaseName(String packageName) {
 		// Ripping everything but the last part of the
 		String strippedClassName = "UNDEF";

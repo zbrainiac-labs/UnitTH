@@ -4,49 +4,30 @@
 package unitth.junit;
 
 import java.io.File;
-import java.io.FileReader;
-import java.io.BufferedReader;
 import java.io.IOException;
+import java.nio.file.Files;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.Locale;
+import java.util.Map;
 
+import unitth.core.Log;
 import unitth.core.ReportParser;
 import unitth.core.UnitTHConfig;
-import unitth.core.UnitTHException;
 
+/** Parses CTRF (Common Test Report Format) JSON reports. */
 public class CTRFReportParser extends ReportParser {
-
-    private TestHistory history = null;
-    private int currentRunIdx = 0;
 
     public CTRFReportParser(UnitTHConfig config) {
         super(config);
-        history = new TestHistory(config);
     }
 
     @Override
-    public TestHistory parseRuns(ArrayList<ArrayList<File>> testRunFiles,
-            ArrayList<String> dirs) {
-        currentRunIdx = 1;
-        for (ArrayList<File> files : testRunFiles) {
-            TestRun currentTestRun = new TestRun(config);
-            HashMap<String, TestPackage> parsedTestPackages = new HashMap<>();
-            for (File f : files) {
-                parseFile(f, parsedTestPackages);
-            }
-            currentTestRun.setRunPath(dirs.get(currentRunIdx - 1));
-            currentTestRun.addTestPackages(parsedTestPackages);
-            try {
-                history.addTestRun(currentTestRun);
-            } catch (UnitTHException e) {
-                System.err.println("Error adding test run: " + e.getMessage());
-            }
-            currentRunIdx++;
-        }
-        return history;
+    protected void parseFile(File file) {
+        parseFile(file, parsedTestPackages);
     }
 
     void parseFile(File file, HashMap<String, TestPackage> packages) {
@@ -58,7 +39,7 @@ public class CTRFReportParser extends ReportParser {
 
             String testsArray = extractTestsArray(json);
             if (testsArray == null) {
-                System.err.println("No tests array found in: " + file.getName());
+                Log.warn("No tests array found in: " + file.getName());
                 return;
             }
 
@@ -66,7 +47,7 @@ public class CTRFReportParser extends ReportParser {
 
             String projectName = extractString(json, "\"projectName\"", "environment");
 
-            java.util.LinkedHashMap<String, ArrayList<String>> suiteMap = new java.util.LinkedHashMap<>();
+            LinkedHashMap<String, ArrayList<String>> suiteMap = new LinkedHashMap<>();
             ArrayList<String> testObjects = splitTestObjects(testsArray);
             for (String testJson : testObjects) {
                 String suite = projectName != null ? projectName
@@ -75,7 +56,7 @@ public class CTRFReportParser extends ReportParser {
                 suiteMap.computeIfAbsent(suite, k -> new ArrayList<>()).add(testJson);
             }
 
-            for (java.util.Map.Entry<String, ArrayList<String>> entry : suiteMap.entrySet()) {
+            for (Map.Entry<String, ArrayList<String>> entry : suiteMap.entrySet()) {
                 String suiteName = entry.getKey();
                 ArrayList<String> tests = entry.getValue();
 
@@ -129,19 +110,11 @@ public class CTRFReportParser extends ReportParser {
                 }
 
                 module.calcStats();
-
-                String packageName = module.getPackageName();
-                TestPackage tp = packages.get(packageName);
-                if (tp == null) {
-                    tp = new TestPackage();
-                    tp.setName(packageName);
-                    packages.put(packageName, tp);
-                }
-                tp.addTestModule(module);
+                addToPackage(packages, module);
             }
 
         } catch (Exception e) {
-            System.err.println("Error parsing CTRF file '" + file.getAbsolutePath() + "': " + e.getMessage());
+            Log.error("Error parsing CTRF file '" + file.getAbsolutePath() + "': " + e.getMessage());
         }
     }
 
@@ -162,15 +135,9 @@ public class CTRFReportParser extends ReportParser {
         return null;
     }
 
-    private String readFile(File file) throws IOException {
-        StringBuilder sb = new StringBuilder();
-        try (BufferedReader br = new BufferedReader(new FileReader(file))) {
-            String line;
-            while ((line = br.readLine()) != null) {
-                sb.append(line);
-            }
-        }
-        return sb.toString();
+    /* File content with line breaks removed (the extractors scan a single line). */
+    private static String readFile(File file) throws IOException {
+        return new String(Files.readAllBytes(file.toPath())).replace("\r", "").replace("\n", "");
     }
 
     private String extractString(String json, String key, String context) {
@@ -199,28 +166,6 @@ public class CTRFReportParser extends ReportParser {
         if (endQuote < 0) return null;
 
         return json.substring(startQuote + 1, endQuote);
-    }
-
-    private int extractInt(String json, String key) {
-        int keyIdx = json.indexOf(key);
-        if (keyIdx < 0) return 0;
-        int colonIdx = json.indexOf(':', keyIdx + key.length());
-        if (colonIdx < 0) return 0;
-
-        int start = colonIdx + 1;
-        while (start < json.length() && (json.charAt(start) == ' ' || json.charAt(start) == '\t')) {
-            start++;
-        }
-        int end = start;
-        while (end < json.length() && (Character.isDigit(json.charAt(end)) || json.charAt(end) == '-')) {
-            end++;
-        }
-        if (start == end) return 0;
-        try {
-            return Integer.parseInt(json.substring(start, end));
-        } catch (NumberFormatException e) {
-            return 0;
-        }
     }
 
     private long extractLong(String json, String key) {
@@ -294,10 +239,4 @@ public class CTRFReportParser extends ReportParser {
         }
         return objects;
     }
-
-    @Override
-    public void startElement(String uri, String localName, String qName, org.xml.sax.Attributes attributes) {}
-
-    @Override
-    public void endElement(String uri, String localName, String qName) {}
 }

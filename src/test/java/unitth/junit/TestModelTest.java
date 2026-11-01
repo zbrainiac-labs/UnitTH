@@ -69,6 +69,20 @@ class TestModelTest {
 	}
 
 	@Test
+	void packageSummaryCountsTestCasesOfFirstRun() {
+		TestModule m = new TestModule();
+		m.setName("p.M");
+		m.addTestCase(tc("p.M", "t1", TestCaseVerdict.e_PASS, "1"));
+		m.addTestCase(tc("p.M", "t2", TestCaseVerdict.e_PASS, "1"));
+		TestPackage tp = new TestPackage();
+		tp.setName("p");
+		tp.addTestModule(m);
+		TestPackageSummary s = new TestPackageSummary(tp);
+		assertThat(s.getNoUniqueTestCases()).isEqualTo(2);
+		assertThat(s.getNoUniqueTestModules()).isEqualTo(1);
+	}
+
+	@Test
 	void summaryRejectsOtherTestCase() {
 		TestCaseSummary s = new TestCaseSummary(tc("p.M", "t", TestCaseVerdict.e_PASS, "1"), 1);
 		assertThatThrownBy(() -> s.increment(tc("p.M", "other", TestCaseVerdict.e_PASS, "1"), 2))

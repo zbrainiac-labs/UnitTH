@@ -9,9 +9,13 @@ import java.io.FilenameFilter;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.nio.file.Path;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
 import java.util.Locale;
+import java.util.stream.Collectors;
 
 import unitth.html.junit.HtmlMainGen;
 import unitth.html.junit.HtmlModuleGen;
@@ -20,17 +24,17 @@ import unitth.jenkins.JenkinsReportParser;
 import unitth.junit.CTRFReportParser;
 import unitth.junit.JUnitReportParser;
 import unitth.junit.TestHistory;
+import unitth.store.JsonRunStore;
+import unitth.store.RunId;
 
 public class UnitTH {
-	public final static String versionNumber = "3.0";
+	public static final String VERSION_NUMBER = "3.0";
 
-	public final static String NOT_IN_PACKAGE = "not-in-package";
-
-	private static final String c_HELP_TEXT = "\n"
+	private static final String HELP_TEXT = "\n"
 			+ " UnitTH - Unit Test History\n"
 			+ " MIT License\n\n"
 			+ " Unit Test (report) history generator - UnitTH v"
-			+ versionNumber
+			+ VERSION_NUMBER
 			+ "\n"
 			+ "------------------------------------------------------\n"
 			+ "This program is to be used for multiple generated\n"
@@ -54,13 +58,17 @@ public class UnitTH {
 			+ "> java -jar unitth.jar report_2009-*\n" + "\n"
 			+ "\n"
 			+ "> java -jar unitth.jar -j jenkinsInstallation/builds/unitth-job/builds\n" + "\n"
+			+ "\n"
+			+ "> java -jar unitth.jar --store history.json --ctrf reports/*\n"
+			+ "  Keeps parsed runs in history.json; later invocations only parse new\n"
+			+ "  run folders and the raw reports of stored runs may be deleted.\n"
 			;
 
-	private static final String c_USAGE_TEXT = "\n"
+	private static final String USAGE_TEXT = "\n"
 			+ "UnitTH - Unit Test History\n"
 			+ "MIT License\n\n"
 			+ "   Test (report) history generator - UnitTH v"
-			+ versionNumber
+			+ VERSION_NUMBER
 			+ "\n"
 			+ "-----------------------------------------------------\n"
 			+ "This program parses test results and test reports\n"
@@ -75,16 +83,30 @@ public class UnitTH {
 			+ "\n"
 			+ "Usage: java -jar unitth.jar <-j|--jenkins> <Path to folder where all Jenkins reports have been generated. Usually <jenkins installation>/jobs/<job name>/builds\n"
 			+ "Example: java -jar unitth.jar -j ../builds/unitth-job/builds\n"
+			+ "\n"
+			+ "Run store (incremental history, keeps the newest unitth.max.runs runs, default 100):\n"
+			+ "Usage: java -jar unitth.jar --store <file.json> [--ingest-only] [-c|--ctrf|-j|--jenkins] <folders>\n"
+			+ "  --store <file>   read/write the JSON run store (or -Dunitth.store.file=<file>)\n"
+			+ "  --ingest-only    only add new runs to the store, do not generate the report\n"
+			+ "  --store-dir <d>  report on all run stores in <d> (ingest still goes to --store)\n"
+			+ "  lock: -Dunitth.store.lock.timeout=<s> (default 60); on timeout the ingest is skipped\n"
 			;
 
-	private static final String c_FLAG_HELP_LONG = "--help";
-	private static final String c_FLAG_HELP_SHORT = "-h";
-	private static final String c_JENKINS_REPORTS_SHORT = "-j";
-	private static final String c_JENKINS_REPORTS_LONG = "--jenkins";
-	private static final String c_CTRF_REPORTS_SHORT = "-c";
-	private static final String c_CTRF_REPORTS_LONG = "--ctrf";
-	public static final String c_VERSION_SHORT = "-v";
-	public static final String c_VERSION_LONG = "--version";
+	private static final String FLAG_HELP_LONG = "--help";
+	private static final String FLAG_HELP_SHORT = "-h";
+	private static final String FLAG_JENKINS_SHORT = "-j";
+	private static final String FLAG_JENKINS_LONG = "--jenkins";
+	private static final String FLAG_CTRF_SHORT = "-c";
+	private static final String FLAG_CTRF_LONG = "--ctrf";
+	private static final String FLAG_VERSION_SHORT = "-v";
+	private static final String FLAG_VERSION_LONG = "--version";
+	private static final String FLAG_STORE = "--store";
+	private static final String FLAG_INGEST_ONLY = "--ingest-only";
+	private static final String FLAG_STORE_DIR = "--store-dir";
+	/** Seconds to wait for the run store lock before skipping the ingest. */
+	public static final String PROP_LOCK_TIMEOUT = "unitth.store.lock.timeout";
+	private static final long DEFAULT_LOCK_TIMEOUT = 60;
+	private static final String RUN_STORE = "Run store '";
 
 	public static final String CSS_DIR = "css";
 	public static final String CSS_FILE = "style.css";
@@ -102,13 +124,15 @@ public class UnitTH {
 	protected ArrayList<String> dirs = null;
 	protected ReportParser parser = null;
 	protected TestHistory theHistory = null;
+	private boolean ingestOnly = false;
+	private String storeDir = null;
 
 	public static void main(String[] args) {
 		Locale.setDefault(Locale.US);
 		UnitTH thg = new UnitTH(UnitTHConfig.fromEnvironment());
 		thg.run(args);
 		if (thg.config.debug()) {
-			System.out.println(thg.toString());
+			Log.out(thg.toString());
 		}
 	}
 
@@ -133,65 +157,106 @@ public class UnitTH {
 	 */
 	public int run(String... args) {
 		config = baseConfig.withInputArgs(Arrays.asList(args));
-		if (args.length == 0) {
-			System.out.println(c_USAGE_TEXT);
+		List<String> rest = new ArrayList<>(Arrays.asList(args));
+		if (!parseOptions(rest)) {
+			return FAILED;
+		}
+		if (rest.isEmpty() && config.storeFile() == null && storeDir == null) {
+			Log.out(USAGE_TEXT);
 			return OK;
 		}
-		if (args[0].equals(c_FLAG_HELP_LONG) || args[0].equals(c_FLAG_HELP_SHORT)) {
-			System.out.println(c_HELP_TEXT);
+		String first = rest.isEmpty() ? "" : rest.get(0);
+		if (first.equals(FLAG_HELP_LONG) || first.equals(FLAG_HELP_SHORT)) {
+			Log.out(HELP_TEXT);
 			return OK;
 		}
-		if (args[0].equals(c_VERSION_SHORT) || args[0].equals(c_VERSION_LONG)) {
-			System.out.println("UnitTH version: " + versionNumber);
+		if (first.equals(FLAG_VERSION_SHORT) || first.equals(FLAG_VERSION_LONG)) {
+			Log.out("UnitTH version: " + VERSION_NUMBER);
 			return OK;
 		}
 		long timeStamp = System.currentTimeMillis();
 		printProperties();
 
 		String[] folders;
-		if (args[0].equals(c_JENKINS_REPORTS_SHORT) || args[0].equals(c_JENKINS_REPORTS_LONG)) {
-			if (args.length < 2) {
-				wrongJenkinsInvocation();
-				return FAILED;
-			}
-			parser = new JenkinsReportParser(config);
-			folders = jenkinsBuildFolders(args[1]);
-		} else if (args[0].equals(c_CTRF_REPORTS_SHORT) || args[0].equals(c_CTRF_REPORTS_LONG)) {
-			parser = new CTRFReportParser(config);
-			folders = Arrays.copyOfRange(args, 1, args.length);
-		} else {
-			parser = new JUnitReportParser(config);
-			folders = args;
+		try {
+			folders = selectParser(rest);
+		} catch (UnitTHException e) {
+			Log.error(e.getMessage());
+			return FAILED;
 		}
-
 		if (!parseAndCalculate(folders)) {
 			return FAILED;
+		}
+		if (ingestOnly) {
+			return OK;
 		}
 		unpackAndGenerate();
 
 		if (!(parser instanceof JenkinsReportParser) && theHistory.getNoExecutedTestCases() < 1) {
-			System.err.println("No test cases has been parsed, skipping report generation.");
+			Log.error("No test cases has been parsed, skipping report generation.");
 			return FAILED;
 		}
 
 		long diff = System.currentTimeMillis() - timeStamp;
-		System.out.println("\nA test history report has been generated in "
+		Log.out("\nA test history report has been generated in "
 				+ diff + " ms at '" + config.rootFolder() + "'.");
 		return OK;
 	}
 
+	/* Consumes the leading --store/--store-dir/--ingest-only options; false on invalid use. */
+	private boolean parseOptions(List<String> rest) {
+		ingestOnly = false;
+		storeDir = null;
+		while (!rest.isEmpty() && List.of(FLAG_STORE, FLAG_STORE_DIR, FLAG_INGEST_ONLY).contains(rest.get(0))) {
+			String flag = rest.remove(0);
+			if (flag.equals(FLAG_INGEST_ONLY)) {
+				ingestOnly = true;
+			} else if (rest.isEmpty()) {
+				Log.error("The " + flag + " option requires an argument.");
+				return false;
+			} else if (flag.equals(FLAG_STORE)) {
+				config = config.withStoreFile(rest.remove(0));
+			} else {
+				storeDir = rest.remove(0);
+			}
+		}
+		if (ingestOnly && config.storeFile() == null) {
+			Log.error("The " + FLAG_INGEST_ONLY + " option requires a run store (" + FLAG_STORE + " <file>).");
+			return false;
+		}
+		return true;
+	}
+
+	/* Chooses the parser from the mode flag and returns the run folders. */
+	private String[] selectParser(List<String> rest) throws UnitTHException {
+		String first = rest.isEmpty() ? "" : rest.get(0);
+		if (first.equals(FLAG_JENKINS_SHORT) || first.equals(FLAG_JENKINS_LONG)) {
+			if (rest.size() < 2) {
+				throw new UnitTHException("The Jenkins flags (-j --jenkins) require one additional argument pointing to the Jenkins builds folder.");
+			}
+			parser = new JenkinsReportParser(config);
+			return jenkinsBuildFolders(rest.get(1));
+		}
+		if (first.equals(FLAG_CTRF_SHORT) || first.equals(FLAG_CTRF_LONG)) {
+			parser = new CTRFReportParser(config);
+			return rest.subList(1, rest.size()).toArray(new String[0]);
+		}
+		parser = new JUnitReportParser(config);
+		return rest.toArray(new String[0]);
+	}
+
 	private String[] jenkinsBuildFolders(String path) {
 		File jenkinsBuildDir = new File(path);
-		ArrayList<String> buildFolders = new ArrayList<String>();
-		if (jenkinsBuildDir.exists()) {
-			File[] builds = jenkinsBuildDir.listFiles();
+		ArrayList<String> buildFolders = new ArrayList<>();
+		File[] builds = jenkinsBuildDir.listFiles();
+		if (builds != null) {
 			for (File build : builds) {
 				if (build.isDirectory()) {
 					buildFolders.add(build.getAbsolutePath());
 				}
 			}
 		} else {
-			System.err.println("Jenkins build reports folder '" + jenkinsBuildDir.getAbsolutePath()
+			Log.error("Jenkins build reports folder '" + jenkinsBuildDir.getAbsolutePath()
 					+ "' does not exists, please check the input arguments '-j <folder path>'.");
 		}
 		return buildFolders.toArray(new String[0]);
@@ -206,7 +271,7 @@ public class UnitTH {
 			boolean isXml = (name.endsWith(".xml") || name.endsWith(".XML"))
 					&& name.startsWith(xmlFilter);
 			boolean isJson = (name.endsWith(".json") || name.endsWith(".JSON"))
-					&& name.startsWith(jsonFilter);
+					&& name.startsWith(jsonFilter) && !JsonRunStore.isStoreFile(new File(dir, name).toPath());
 			if (ctrfOnly || "json".equalsIgnoreCase(format)) {
 				return isJson;
 			}
@@ -234,8 +299,8 @@ public class UnitTH {
 	}
 
 	private void collectAllFiles(String... args) throws UnitTHException {
-		dirs = new ArrayList<String>();
-		testRuns = new ArrayList<ArrayList<File>>();
+		dirs = new ArrayList<>();
+		testRuns = new ArrayList<>();
 
 		int effectiveStart = Math.max(0, args.length - config.maxRuns());
 		FilenameFilter filter = createReportFileFilter();
@@ -245,17 +310,12 @@ public class UnitTH {
 				throw new UnitTHException("Folder '" + d.getAbsoluteFile()
 						+ "' given as input argument does not exist.");
 			}
-			if (d.isDirectory()) {
-				ArrayList<File> testRunFiles = new ArrayList<File>();
-				for (File f : d.listFiles(filter)) {
-					if (f.isFile()) {
-						testRunFiles.add(f);
-					}
-				}
-				if (testRunFiles.size() > 0) {
-					dirs.add(args[i]);
-					testRuns.add(testRunFiles);
-				}
+			File[] files = d.isDirectory() ? d.listFiles(filter) : null;
+			ArrayList<File> testRunFiles = files == null ? new ArrayList<>()
+					: Arrays.stream(files).filter(File::isFile).collect(Collectors.toCollection(ArrayList::new));
+			if (!testRunFiles.isEmpty()) {
+				dirs.add(args[i]);
+				testRuns.add(testRunFiles);
 			}
 		}
 	}
@@ -264,26 +324,124 @@ public class UnitTH {
 		try {
 			collectAllFiles(args);
 		} catch (UnitTHException uthe) {
-			System.err.println(uthe.getMessage());
+			Log.error(uthe.getMessage());
 			return false;
 		}
 
-		if (0 < testRuns.size()) {
+		if (config.storeFile() != null || storeDir != null) {
+			theHistory = storeHistory();
+			if (theHistory == null) {
+				return false;
+			}
+		} else if (!testRuns.isEmpty()) {
 			theHistory = parser.parseRuns(testRuns, dirs);
 		} else {
-			System.err.println("There are no files to parse! Check the input parameters and properties.");
-			System.out.println(c_USAGE_TEXT);
+			Log.error("There are no files to parse! Check the input parameters and properties.");
+			Log.out(USAGE_TEXT);
 			return false;
 		}
-
-		if (null != theHistory) {
-			theHistory.calcStats();
-			if (config.debug()) {
-				System.out.println(theHistory.toString());
-			}
+		if (ingestOnly) {
 			return true;
 		}
-		return false;
+		theHistory.calcStats();
+		if (config.debug()) {
+			Log.out(theHistory.toString());
+		}
+		return true;
+	}
+
+	private enum Ingest { ADDED, KNOWN, FAILED }
+
+	/* Parses and adds the i-th collected run unless its content is already known. */
+	private Ingest ingestRun(JsonRunStore store, int i) {
+		try {
+			String id = RunId.of(testRuns.get(i));
+			if (store.isKnown(id)) {
+				return Ingest.KNOWN;
+			}
+			store.add(id, dirs.get(i), parser.parseRun(testRuns.get(i), dirs.get(i)));
+			return Ingest.ADDED;
+		} catch (IOException e) {
+			Log.error("Could not read run folder '" + dirs.get(i) + "', it is retried next time", e);
+			return Ingest.FAILED;
+		}
+	}
+
+	/*
+	 * Ingests the collected runs into the --store file (if any), then returns
+	 * the history of the stored runs, of all stores in --store-dir if given,
+	 * or null on errors.
+	 */
+	private TestHistory storeHistory() {
+		if (config.storeFile() == null) {
+			if (!testRuns.isEmpty()) {
+				Log.error("Run folders need a run store to ingest into (" + FLAG_STORE + " <file>).");
+				return null;
+			}
+		} else if (!ingestIntoStore(Path.of(config.storeFile()))) {
+			return null;
+		}
+		try {
+			List<JsonRunStore> stores = storeDir != null ? JsonRunStore.loadAll(Path.of(storeDir))
+					: List.of(JsonRunStore.load(Path.of(config.storeFile())));
+			TestHistory history = new TestHistory(config);
+			for (JsonRunStore store : stores) {
+				store.toRuns(config).forEach(history::addTestRun);
+			}
+			if (history.getNoRuns() == 0) {
+				Log.error("The run store is empty and there are no new runs to parse.");
+				return null;
+			}
+			return history;
+		} catch (IOException e) {
+			Log.error("Run stores could not be read", e);
+			return null;
+		}
+	}
+
+	/*
+	 * Adds the collected runs that are not yet in the store and trims it to
+	 * maxRuns, holding the store lock. A lock timeout skips the ingest with a
+	 * warning; false only if the store could not be used at all.
+	 */
+	private boolean ingestIntoStore(Path storePath) {
+		Duration timeout = Duration.ofSeconds(Long.getLong(PROP_LOCK_TIMEOUT, DEFAULT_LOCK_TIMEOUT));
+		try {
+			String summary = JsonRunStore.locked(storePath, timeout, () -> ingestLocked(storePath));
+			Log.out(summary);
+			return true;
+		} catch (JsonRunStore.LockTimeoutException e) {
+			Log.warn(e.getMessage() + "; " + testRuns.size() + " run folder(s) were not stored");
+			Log.out(storeLine(storePath) + " ingest=skipped");
+			return true;
+		} catch (IOException e) {
+			Log.error(RUN_STORE + storePath + "' could not be used", e);
+			Log.out(storeLine(storePath) + " ingest=failed");
+			return false;
+		}
+	}
+
+	private String storeLine(Path storePath) {
+		return RUN_STORE + storePath + "': found=" + testRuns.size();
+	}
+
+	private String ingestLocked(Path storePath) throws IOException {
+		JsonRunStore store = JsonRunStore.load(storePath);
+		int added = 0;
+		int known = 0;
+		int failed = 0;
+		for (int i = 0; i < testRuns.size(); i++) {
+			switch (ingestRun(store, i)) {
+			case ADDED -> added++;
+			case KNOWN -> known++;
+			default -> failed++;
+			}
+		}
+		int dropped = store.trim(config.maxRuns());
+		store.save();
+		return storeLine(storePath) + " added=" + added
+				+ " known=" + known + " failed=" + failed + " dropped=" + dropped + " stored=" + store.size()
+				+ " ingest=" + (failed == 0 ? "ok" : "failed");
 	}
 
 	private void extractFilesFromJar() throws IOException, UnitTHException {
@@ -309,16 +467,19 @@ public class UnitTH {
 	}
 
 	private void printProperties() {
-		System.out.println("Using the following properties");
-		System.out.println(" " + UnitTHConfig.PROP_HTML_REPORT_PATH + " = " + config.reportPath());
-		System.out.println(" " + UnitTHConfig.PROP_REPORT_DIR + " = " + config.rootFolder());
-		System.out.println(" " + UnitTHConfig.PROP_XML_REPORT_FILTER + " = " + config.xmlReportFilter());
-		System.out.println(" " + UnitTHConfig.PROP_GEN_EXECTIMEGRAPHS + " = " + config.generateExecTimeGraphs());
-		System.out.println(" " + UnitTHConfig.PROP_USE_ABS_PATHS + " = " + config.useAbsPaths());
-		System.out.println(" " + UnitTHConfig.PROP_REPORT_FORMAT + " = " + config.reportFormat());
-	}
-
-	private void wrongJenkinsInvocation() {
-		System.err.println("The Jenkins flags (-j --jenkins) require one additional argument pointing to the Jenkins builds folder.");
+		Log.out("Using the following properties");
+		Log.out(" " + UnitTHConfig.PROP_HTML_REPORT_PATH + " = " + config.reportPath());
+		Log.out(" " + UnitTHConfig.PROP_REPORT_DIR + " = " + config.rootFolder());
+		Log.out(" " + UnitTHConfig.PROP_XML_REPORT_FILTER + " = " + config.xmlReportFilter());
+		Log.out(" " + UnitTHConfig.PROP_GEN_EXECTIMEGRAPHS + " = " + config.generateExecTimeGraphs());
+		Log.out(" " + UnitTHConfig.PROP_USE_ABS_PATHS + " = " + config.useAbsPaths());
+		Log.out(" " + UnitTHConfig.PROP_REPORT_FORMAT + " = " + config.reportFormat());
+		if (storeDir != null) {
+			Log.out(" " + FLAG_STORE_DIR + " = " + storeDir);
+		}
+		if (config.storeFile() != null) {
+			Log.out(" " + UnitTHConfig.PROP_STORE_FILE + " = " + config.storeFile());
+			Log.out(" " + UnitTHConfig.PROP_MAX_RUNS + " = " + config.maxRuns());
+		}
 	}
 }
