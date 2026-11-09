@@ -10,3 +10,5 @@
 /META-INF/
 src/test/resources/unithistreport/
 /.snowflake/
+/local-ci/logs/
+/.sonar-issues.tsv

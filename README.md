@@ -20,9 +20,9 @@ UnitTH reads standard JUnit XML (`<testsuite>/<testcase>`) and CTRF JSON from on
 | Feature | Description |
 |---------|-------------|
 | Dashboard | Overview with pass rate, run count, best/worst run, trends |
-| Run history | Per-run breakdown of pass/fail/error/ignored counts |
-| Package view | Aggregated stats by Java package |
-| Module view | Per-test-class history with charts |
+| Projects | One expandable row per package (project): latest run, pass rate, change since the previous run; opening it lists all runs of the project |
+| Package view | Aggregated stats by package, with its runs, test cases and verdict spread |
+| Module view | Per-test-class history; hidden when every package has exactly one module (e.g. CTRF from the DataOps pipeline) |
 | Test case spread | Color-coded grid showing pass/fail per test per run |
 | Trend charts | Chart.js interactive graphs for pass rate, test count, execution time, failures |
 
@@ -33,12 +33,12 @@ The output is a static HTML5 site (responsive, dark mode) that can be opened loc
 ### Prerequisites
 
 - Java 21+
-- Maven 3.8+ (to build from source)
+- Maven: use the bundled wrapper `./mvnw` (pins Maven 3.9.14)
 
 ### Build
 
 ```bash
-mvn clean package
+./mvnw clean package
 ```
 
 This produces `target/unitth.jar`.
@@ -129,6 +129,7 @@ At most the 100 most recent run folders are included in a report (`unitth.max.ru
 | `unitth.store.file` | (none) | Run store file, same as `--store <file>` |
 | `unitth.max.runs` | `100` | Runs per report and runs kept in the store |
 | `unitth.store.lock.timeout` | `60` | Seconds to wait for the store lock (`-D` flag only) |
+| `unitth.ctrf.skip.comments` | `true` | Drop SQL comment lines reported as tests (name blank or starting with `#`, CTRF message `Commented or empty`), for new input and stored runs |
 
 Example with `-D` flags:
 
@@ -200,6 +201,16 @@ In both `--ctrf` and default mode, CTRF JSON files are grouped by `results.envir
 | Manual smoke check | `./runtest.sh` | Shell script, not part of the Maven build |
 | Deployment E2E | `sh e2e/deploy-e2e.sh` | Against the running DataOpsBackbone stack: jar checksum, in-container `--ctrf` run, nginx pages, run limit, packages, test-case tables, dates, store mode (same report as plain, second run `added=0`). `SAVE_BASELINE=<file>` / `BASELINE=<file>` save / compare page metrics. Env overrides: `RUNNER`, `BASE_URL`, `MAX_RUNS`, `STORE` |
 | Self-history | `./e2e/self-history.sh` | UnitTH's own test history from the last `mvn verify` |
+
+### Local CI and deployment
+
+`.github/workflows/ci.yml` runs on GitHub and, unchanged, locally under [act](https://github.com/nektos/act). Details: [local-ci/README.md](local-ci/README.md).
+
+| What | Command | Notes |
+|------|---------|-------|
+| Full CI locally | `./local-ci/act.sh [--job=lint\|test\|sonar]` | lint (actionlint, ShellCheck), test (`mvnw verify`), sonar on the DataOpsBackbone runner image |
+| Scan + quality gate | `./local-ci/sonar-self-scan.sh` | Trivy, gitleaks, ShellCheck, SonarQube gate; fails on any HIGH/BLOCKER/CRITICAL issue; writes `.sonar-issues.tsv` |
+| Deploy | `./local-ci/deploy.sh [--quick] [--no-e2e] [--force]` | Jar into the DataOpsBackbone runner image, restart runners + report server, rebuild the report from the stores, then `e2e/deploy-e2e.sh` |
 
 ## Project structure
 
