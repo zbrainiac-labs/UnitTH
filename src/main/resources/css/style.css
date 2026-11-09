@@ -514,6 +514,56 @@ tbody tr:last-child td { border-bottom: none; }
 
 div.hidden { display: none; }
 
+/* Projects: one expandable block per package, runs listed when opened */
+.projects { display: flex; flex-direction: column; gap: 0.5rem; margin-bottom: 2rem; }
+.expand-all {
+  align-self: flex-end;
+  background: var(--bg-surface);
+  color: var(--text-secondary);
+  border: 1px solid var(--border-primary);
+  border-radius: var(--radius-sm);
+  padding: 0.25rem 0.75rem;
+  font: inherit;
+  font-size: 0.75rem;
+  cursor: pointer;
+}
+.expand-all:hover { color: var(--text-primary); border-color: var(--border-accent); }
+details.project {
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+}
+details.project[open] { border-color: var(--border-primary); }
+details.project > summary {
+  display: grid;
+  grid-template-columns: minmax(0, 3fr) 5rem 11rem 5rem minmax(80px, 1.5fr) 5rem;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.75rem 1rem;
+  cursor: pointer;
+  list-style: none;
+}
+details.project > summary::-webkit-details-marker { display: none; }
+details.project > summary:hover { background: var(--bg-card-hover); border-radius: var(--radius-md); }
+.project-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.project-name::before { content: '\25B8'; color: var(--text-muted); margin-right: 0.5rem; display: inline-block; }
+details.project[open] .project-name::before { transform: rotate(90deg); }
+.project-runs, .project-date, .project-trend { color: var(--text-secondary); }
+.project-pct, .project-trend { text-align: right; }
+.project-bar.graphBar { width: auto; }
+details.project > table { margin: 0 1rem 1rem; width: calc(100% - 2rem); }
+details.project > table tbody { display: block; max-height: 400px; overflow-y: auto; }
+details.project > table thead, details.project > table tbody tr { display: table; width: 100%; table-layout: fixed; }
+
+@media (prefers-reduced-motion: no-preference) {
+  .project-name::before { transition: transform var(--transition); }
+}
+
+@media (max-width: 768px) {
+  details.project > summary { grid-template-columns: minmax(0, 1fr) 4rem 4rem; }
+  .project-date, .project-bar, .project-trend { display: none; }
+}
+
 @media (max-width: 1024px) {
   .dashboard-grid { grid-template-columns: 1fr; }
   .kpi-strip { grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); }

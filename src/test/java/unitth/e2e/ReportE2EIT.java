@@ -39,6 +39,7 @@ class ReportE2EIT {
 
 	private static final Pattern RUNS_KPI = Pattern.compile("kpi-value accent\">(\\d+)");
 	private static final Pattern RUN_DATE = Pattern.compile("\\d{4}-\\d{2}-\\d{2}&nbsp;\\d{2}:\\d{2}:\\d{2}");
+	private static final Pattern PACKAGE_LINK = Pattern.compile("th-package-[^\"]*\\.html");
 
 	static Stream<Arguments> scenarios() {
 		return Stream.of(
@@ -62,6 +63,19 @@ class ReportE2EIT {
 
 		assertThat(out.resolve("css/style.css")).exists();
 		assertThat(out.resolve("js/tablesort.js")).exists();
+
+		// One expandable project per package, listing exactly the runs of its package page
+		String[] projects = index.split("<details class=\"project\">");
+		assertThat(projects.length - 1).as("projects").isEqualTo(packages);
+		for (int i = 1; i < projects.length; i++) {
+			String block = projects[i].substring(0, projects[i].indexOf("</details>"));
+			Matcher page = PACKAGE_LINK.matcher(block);
+			assertThat(page.find()).as("project link").isTrue();
+			int runRows = block.split("<tr>", -1).length - 2; // minus text before the first row and the header
+			assertThat(runRows).as("runs of " + page.group())
+					.isEqualTo(tableRows(read(out.resolve(page.group())), "run_table")).isPositive();
+		}
+		assertThat(index.contains("href=\"#modules\"")).as("modules section").isEqualTo(modules != packages);
 
 		for (Path pkg : list(out, "th-package-")) {
 			String html = read(pkg);

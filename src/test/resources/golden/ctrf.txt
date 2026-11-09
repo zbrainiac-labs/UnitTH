@@ -1,7 +1,7 @@
 runs=3
-th-module-UnknownOwner_UnknownRepo.SQLValidation.html testcases=6 spread=6
+th-module-UnknownOwner_UnknownRepo.SQLValidation.html testcases=5 spread=5
 th-module-zbrainiac-labs_SyntheticRetailBank.SQLValidation.html testcases=1 spread=1
-th-module-zbrainiac-labs_sharing_any_objects.SQLValidation.html testcases=13 spread=13
-th-package-UnknownOwner_UnknownRepo.html testcases=6 spread=6
+th-module-zbrainiac-labs_sharing_any_objects.SQLValidation.html testcases=10 spread=10
+th-package-UnknownOwner_UnknownRepo.html testcases=5 spread=5
 th-package-zbrainiac-labs_SyntheticRetailBank.html testcases=1 spread=1
-th-package-zbrainiac-labs_sharing_any_objects.html testcases=13 spread=13
+th-package-zbrainiac-labs_sharing_any_objects.html testcases=10 spread=10

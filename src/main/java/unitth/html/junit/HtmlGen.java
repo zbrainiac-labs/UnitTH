@@ -271,7 +271,12 @@ public abstract class HtmlGen {
 
 	/** Run table of a package or module page: runs that contain the item. */
 	protected void writeRunTable(BufferedWriter buf, Function<TestRun, ? extends RunCounts> pick) throws IOException {
-		startTable(buf, "run_table", 4, "Run", "Tests", PASS, ERROR, FAIL, IGNORED, "Exec Date", EXEC_TIME, TOTAL);
+		writeRunTable(buf, "run_table", pick);
+	}
+
+	/** Run table with the given id (null = not sortable), only runs that contain the item. */
+	protected void writeRunTable(BufferedWriter buf, String id, Function<TestRun, ? extends RunCounts> pick) throws IOException {
+		startTable(buf, id, 4, "Run", "Tests", PASS, ERROR, FAIL, IGNORED, "Exec Date", EXEC_TIME, TOTAL);
 		int idx = th.getNoRuns();
 		for (TestRun tr : th.getRuns()) {
 			RunCounts item = pick.apply(tr);
@@ -289,6 +294,11 @@ public abstract class HtmlGen {
 	}
 
 	protected static final String[] SUMMARY_COUNT_HEADERS = { "Tests", "Executed", PASS, ERROR, FAIL, IGNORED, EXEC_TIME, TOTAL };
+
+	/** True if every package has exactly one module, so module views repeat the package views. */
+	protected boolean modulesMirrorPackages() {
+		return th.getTestPackageSummaries().values().stream().allMatch(tps -> tps.getNoUniqueTestModules() == 1);
+	}
 
 	/** One row of a package table, linking to the package page. */
 	protected void writePackageRow(BufferedWriter buf, TestPackageSummary tps) throws IOException {

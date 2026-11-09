@@ -14,7 +14,8 @@ class ModernTableSort {
     // Configuration options
     this.options = {
       enableSorting: true,
-      defaultColumn: 0,
+      // null = keep the generated row order (runs newest first, names already sorted)
+      defaultColumn: null,
       sortableClass: 'sortable',
       ascClass: 'sort-asc',
       descClass: 'sort-desc',

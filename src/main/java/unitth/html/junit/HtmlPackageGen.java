@@ -7,6 +7,7 @@ import unitth.core.Log;
 import java.io.BufferedWriter;
 import java.io.File;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.List;
 
 import unitth.junit.TestCaseSummary;
@@ -30,15 +31,20 @@ public class HtmlPackageGen extends HtmlGen {
 	private void generatePackageRunPage(String packageName) {
 		String fileName = destDir + File.separator + HTMLPACKAGEOUTPUTFILE_PREFIX + fileSafe(packageName) + HTML_SUFFIX;
 		boolean hasSubPackages = th.hasSubPackageSummaries(packageName);
+		boolean withModules = !modulesMirrorPackages();
 		try (BufferedWriter out = createFile(fileName)) {
 			startSortablePage(out, "UnitTH - " + packageName, "run_table", "package_table", "module_table", "testcase_table", "spread_table");
 			startMain(out);
 			writeBreadcrumb(out, packageName);
+			List<String> nav = new ArrayList<>(List.of("runs", "Runs"));
 			if (hasSubPackages) {
-				writeNav(out, "runs", "Runs", "subpackages", "Sub Packages", ANCHOR_TESTMODULES, MODULES, ANCHOR_TESTCASES, TEST_CASES, "spread", "Verdict Spread");
-			} else {
-				writeNav(out, "runs", "Runs", ANCHOR_TESTMODULES, MODULES, ANCHOR_TESTCASES, TEST_CASES, "spread", "Verdict Spread");
+				nav.addAll(List.of("subpackages", "Sub Packages"));
 			}
+			if (withModules) {
+				nav.addAll(List.of(ANCHOR_TESTMODULES, MODULES));
+			}
+			nav.addAll(List.of(ANCHOR_TESTCASES, TEST_CASES, "spread", "Verdict Spread"));
+			writeNav(out, nav.toArray(String[]::new));
 			generateSummary(out, th.getTestPackageSummary(packageName));
 
 			writeSection(out, "runs", "Package Runs", null, "Click on a run to open its HTML test report.");
@@ -55,14 +61,16 @@ public class HtmlPackageGen extends HtmlGen {
 				endTable(out);
 			}
 
-			writeSection(out, ANCHOR_TESTMODULES, MODULES, null, null);
-			startTable(out, "module_table", 4, HtmlMainGen.withNameColumns("Module Name", "Runs"));
-			for (TestModuleSummary tms : th.getTestModuleSummaries().values()) {
-				if (tms.getPackageName().contains(packageName)) {
-					writeModuleRow(out, tms);
+			if (withModules) {
+				writeSection(out, ANCHOR_TESTMODULES, MODULES, null, null);
+				startTable(out, "module_table", 4, HtmlMainGen.withNameColumns("Module Name", "Runs"));
+				for (TestModuleSummary tms : th.getTestModuleSummaries().values()) {
+					if (tms.getPackageName().contains(packageName)) {
+						writeModuleRow(out, tms);
+					}
 				}
+				endTable(out);
 			}
-			endTable(out);
 
 			List<TestCaseSummary> cases = th.getTestCaseSummaries().values().stream()
 				.filter(tcs -> tcs.getPackageName().contains(packageName)).toList();

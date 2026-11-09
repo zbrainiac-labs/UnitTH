@@ -337,7 +337,11 @@ public final class JsonRunStore {
 		for (Map<String, Object> r : runs) {
 			Map<String, TestPackage> packages = new HashMap<>();
 			for (Object m : (List<Object>) r.get("modules")) {
-				ReportParser.addToPackage(packages, module((Map<String, Object>) m));
+				TestModule tm = module((Map<String, Object>) m);
+				if (config.skipCommentTests()) {
+					tm.removeCommentTests();
+				}
+				ReportParser.addToPackage(packages, tm);
 			}
 			TestRun run = new TestRun(config);
 			run.setRunPath((String) r.get("sourcePath"));

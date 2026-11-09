@@ -48,8 +48,10 @@ public class CTRFReportParser extends ReportParser {
             String projectName = extractString(json, "\"projectName\"", "environment");
 
             LinkedHashMap<String, ArrayList<String>> suiteMap = new LinkedHashMap<>();
-            ArrayList<String> testObjects = splitTestObjects(testsArray);
-            for (String testJson : testObjects) {
+            for (String testJson : splitTestObjects(testsArray)) {
+                if (config.skipCommentTests() && isCommentEntry(testJson)) {
+                    continue;
+                }
                 String suite = projectName != null ? projectName
                         : extractString(testJson, "\"suite\"", null);
                 if (suite == null) suite = "SQLValidation";
@@ -57,58 +59,12 @@ public class CTRFReportParser extends ReportParser {
             }
 
             for (Map.Entry<String, ArrayList<String>> entry : suiteMap.entrySet()) {
-                String suiteName = entry.getKey();
-                ArrayList<String> tests = entry.getValue();
-
-                TestModule module = new TestModule();
-                int lastUnderscore = suiteName.lastIndexOf('_');
-                String moduleName = lastUnderscore > 0
-                        ? suiteName.substring(0, lastUnderscore) + "." + suiteName.substring(lastUnderscore + 1)
-                        : "default." + suiteName;
-                module.setName(moduleName);
-
-                int totalTests = 0;
-                int failCount = 0;
-                int skipCount = 0;
-                long totalDurationMs = 0;
-
-                for (String testJson : tests) {
-                    TestCase tc = new TestCase();
-                    String name = extractString(testJson, "\"name\"", null);
-                    String status = extractString(testJson, "\"status\"", null);
-                    long duration = extractLong(testJson, "\"duration\"");
-
-                    tc.setName(name != null ? name : "Unnamed");
-                    tc.setClassName(moduleName);
-                    tc.setModuleName(moduleName);
-                    tc.setExecutionTime(String.valueOf(duration / 1000.0));
-                    totalDurationMs += duration;
-                    totalTests++;
-
-                    if ("failed".equals(status)) {
-                        tc.setVerdict(TestCaseVerdict.e_FAIL);
-                        failCount++;
-                    } else if ("skipped".equals(status)) {
-                        tc.setVerdict(TestCaseVerdict.e_IGNORED);
-                        skipCount++;
-                    } else {
-                        tc.setVerdict(TestCaseVerdict.e_PASS);
-                    }
-                    module.addTestCase(tc);
-                }
-
-                module.setNoTestCases(String.valueOf(totalTests));
-                module.setNoFailures(String.valueOf(failCount));
-                module.setNoErrors("0");
-                module.setNoIgnored(String.valueOf(skipCount));
-                module.setExecutionTime(String.valueOf(totalDurationMs / 1000.0));
-
+                TestModule module = buildModule(entry.getKey(), entry.getValue());
                 if (folderDate != null) {
                     module.setDate(folderDate);
                 } else {
                     module.setDate(file.lastModified());
                 }
-
                 module.calcStats();
                 addToPackage(packages, module);
             }
@@ -116,6 +72,62 @@ public class CTRFReportParser extends ReportParser {
         } catch (Exception e) {
             Log.error("Error parsing CTRF file '" + file.getAbsolutePath() + "': " + e.getMessage());
         }
+    }
+
+    /* A SQL comment line reported as a test (comment name or "Commented or empty" message). */
+    private boolean isCommentEntry(String testJson) {
+        return TestModule.isCommentTest(extractString(testJson, "\"name\"", null))
+                || "Commented or empty".equals(extractString(testJson, "\"message\"", null));
+    }
+
+    private TestModule buildModule(String suiteName, ArrayList<String> tests) {
+        TestModule module = new TestModule();
+        int lastUnderscore = suiteName.lastIndexOf('_');
+        String moduleName = lastUnderscore > 0
+                ? suiteName.substring(0, lastUnderscore) + "." + suiteName.substring(lastUnderscore + 1)
+                : "default." + suiteName;
+        module.setName(moduleName);
+
+        int failCount = 0;
+        int skipCount = 0;
+        long totalDurationMs = 0;
+        for (String testJson : tests) {
+            TestCase tc = buildTestCase(testJson, moduleName);
+            totalDurationMs += extractLong(testJson, "\"duration\"");
+            if (tc.getVerdict() == TestCaseVerdict.e_FAIL) {
+                failCount++;
+            } else if (tc.getVerdict() == TestCaseVerdict.e_IGNORED) {
+                skipCount++;
+            }
+            module.addTestCase(tc);
+        }
+
+        module.setNoTestCases(String.valueOf(tests.size()));
+        module.setNoFailures(String.valueOf(failCount));
+        module.setNoErrors("0");
+        module.setNoIgnored(String.valueOf(skipCount));
+        module.setExecutionTime(String.valueOf(totalDurationMs / 1000.0));
+        return module;
+    }
+
+    private TestCase buildTestCase(String testJson, String moduleName) {
+        TestCase tc = new TestCase();
+        String name = extractString(testJson, "\"name\"", null);
+        String status = extractString(testJson, "\"status\"", null);
+        long duration = extractLong(testJson, "\"duration\"");
+
+        tc.setName(name != null ? name : "Unnamed");
+        tc.setClassName(moduleName);
+        tc.setModuleName(moduleName);
+        tc.setExecutionTime(String.valueOf(duration / 1000.0));
+        if ("failed".equals(status)) {
+            tc.setVerdict(TestCaseVerdict.e_FAIL);
+        } else if ("skipped".equals(status)) {
+            tc.setVerdict(TestCaseVerdict.e_IGNORED);
+        } else {
+            tc.setVerdict(TestCaseVerdict.e_PASS);
+        }
+        return tc;
     }
 
     static String parseFolderDate(String folderName) {
@@ -195,29 +207,37 @@ public class CTRFReportParser extends ReportParser {
         while (idx >= 0) {
             int colonIdx = json.indexOf(':', idx + 7);
             if (colonIdx < 0) return null;
-            int bracketIdx = -1;
-            for (int i = colonIdx + 1; i < json.length(); i++) {
-                char c = json.charAt(i);
-                if (c == ' ' || c == '\t' || c == '\n' || c == '\r') continue;
-                if (c == '[') {
-                    bracketIdx = i;
-                }
-                break;
-            }
+            int bracketIdx = arrayStart(json, colonIdx + 1);
             if (bracketIdx >= 0) {
-                int depth = 1;
-                int end = bracketIdx + 1;
-                while (end < json.length() && depth > 0) {
-                    char c = json.charAt(end);
-                    if (c == '[') depth++;
-                    else if (c == ']') depth--;
-                    end++;
-                }
-                return json.substring(bracketIdx + 1, end - 1);
+                return json.substring(bracketIdx + 1, arrayEnd(json, bracketIdx) - 1);
             }
             idx = json.indexOf("\"tests\"", idx + 7);
         }
         return null;
+    }
+
+    /* Index of '[' if it is the first non-blank character from 'from', else -1. */
+    private static int arrayStart(String json, int from) {
+        for (int i = from; i < json.length(); i++) {
+            char c = json.charAt(i);
+            if (!Character.isWhitespace(c)) {
+                return c == '[' ? i : -1;
+            }
+        }
+        return -1;
+    }
+
+    /* Index just after the ']' matching the '[' at 'start'. */
+    private static int arrayEnd(String json, int start) {
+        int depth = 1;
+        int end = start + 1;
+        while (end < json.length() && depth > 0) {
+            char c = json.charAt(end);
+            if (c == '[') depth++;
+            else if (c == ']') depth--;
+            end++;
+        }
+        return end;
     }
 
     private ArrayList<String> splitTestObjects(String arrayContent) {

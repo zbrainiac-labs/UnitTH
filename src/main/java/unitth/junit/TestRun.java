@@ -343,40 +343,9 @@ public class TestRun extends TestItem implements Comparable<TestRun>, RunCounts 
 	 * The input needs to be absolute paths.
 	 */
 	public String calcRelativePath(String a, String b) {
-		String ret = "";
-
-		// Remove trailing '/'
-		if (a.endsWith("/")) {
-			a = a.substring(0, a.length() - 1);
-		}
-		if (b.endsWith("/")) {
-			b = b.substring(0, b.length() - 1);
-		}
-
-		int shortest = (a.length() > b.length()) ? b.length() : a.length();
-
-		int idxOfLastSlash = 0;
-		for (int i = 1; i <= shortest; i++) { // i = 0 or i = 1 ????
-			if (false == a.regionMatches(true, 0, b, 0, i + 1)) {
-				if (idxOfLastSlash > 0) {
-					a = a.substring(idxOfLastSlash + 1);
-					b = b.substring(idxOfLastSlash + 1);
-				}
-				break;
-			} else if (i == (shortest - 1)) {
-
-				// Which case works where?
-				a = a.substring(i + 1);
-				b = b.substring(i + 1);
-
-				// a = a.substring(i);
-				// b = b.substring(i);
-				break;
-			}
-			if (a.charAt(i) == '/') {
-				idxOfLastSlash = i;
-			}
-		}
+		String[] rest = stripCommonPrefix(stripTrailingSlash(a), stripTrailingSlash(b));
+		a = rest[0];
+		b = rest[1];
 
 		// Tricky with short strings, check if the first char i an '/'
 		if (b.startsWith("/")) {
@@ -385,22 +354,37 @@ public class TestRun extends TestItem implements Comparable<TestRun>, RunCounts 
 
 		// Now calculate the number of '/'. The '/' are the result from the
 		// normalization of the URI. Each '/' indicates at least two levels.
-		int count = 1;
-		for (char c : b.toCharArray()) {
-			if ('/' == c) {
-				count++;
-			}
-		}
+		long count = 1 + b.chars().filter(c -> c == '/').count();
 
-		for (int i = 0; i < count; i++) {
-			if (a.equals("")) {
-				ret += "..";
-			} else {
-				ret += "../";
+		StringBuilder ret = new StringBuilder();
+		for (long i = 0; i < count; i++) {
+			ret.append(a.isEmpty() ? ".." : "../");
+		}
+		return ret.append(a).toString();
+	}
+
+	private static String stripTrailingSlash(String s) {
+		return s.endsWith("/") ? s.substring(0, s.length() - 1) : s;
+	}
+
+	/* Removes the common leading part (up to the last shared '/') from both paths. */
+	private static String[] stripCommonPrefix(String a, String b) {
+		int shortest = Math.min(a.length(), b.length());
+		int idxOfLastSlash = 0;
+		for (int i = 1; i <= shortest; i++) {
+			if (!a.regionMatches(true, 0, b, 0, i + 1)) {
+				return idxOfLastSlash > 0
+						? new String[] { a.substring(idxOfLastSlash + 1), b.substring(idxOfLastSlash + 1) }
+						: new String[] { a, b };
+			}
+			if (i == shortest - 1) {
+				return new String[] { a.substring(i + 1), b.substring(i + 1) };
+			}
+			if (a.charAt(i) == '/') {
+				idxOfLastSlash = i;
 			}
 		}
-		ret += a;
-		return ret;
+		return new String[] { a, b };
 	}
 
 	/**

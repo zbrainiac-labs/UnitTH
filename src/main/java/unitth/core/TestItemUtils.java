@@ -21,6 +21,8 @@ import java.util.function.BiConsumer;
  */
 public class TestItemUtils {
 
+	private static final String NBSP = "&nbsp;";
+
 	/**
 	 * This method converts the execution times for any of the test objects
 	 * <code>TestCase TestModule TestRun</code>. If the execution time is larger
@@ -36,7 +38,7 @@ public class TestItemUtils {
 
 		if (executionTime < 120.0) { // lt 2 minutes
 			String ret = String.format(Locale.US, "%1.3f", executionTime);
-			return ret.replaceAll(" ", "&nbsp;");
+			return ret.replace(" ", NBSP);
 		} else if (executionTime < 60.0 * 60.0 * 2.0) { // lt 2 hours, 7200 sec
 			if ((int) executionTime % 60 < 30) {
 				minutes = (int) executionTime / 60;
@@ -45,7 +47,7 @@ public class TestItemUtils {
 			}
 			String ret = String.format(Locale.US, "%1.3f (~%dmin)",
 					executionTime, minutes);
-			return ret.replaceAll(" ", "&nbsp;");
+			return ret.replace(" ", NBSP);
 		} else { // Above 2 hours
 			int hours = (int) executionTime / 3600;
 			if ((int) executionTime % 60 < 30) {
@@ -60,7 +62,7 @@ public class TestItemUtils {
 
 			String ret = String.format(Locale.US, "%1.3f (~%dh %dmin)",
 					executionTime, hours, minutes);
-			return ret.replaceAll(" ", "&nbsp;");
+			return ret.replace(" ", NBSP);
 		}
 	}
 
@@ -111,7 +113,7 @@ public class TestItemUtils {
 				// Remove the T in any time stamps like "2008-11-12T22:30:17"
 				ret = timeStamp.replace("T", " ");
 			}
-			ret = ret.replace(" ", "&nbsp;");
+			ret = ret.replace(" ", NBSP);
 		} else {
 			ret = "";
 		}
@@ -172,7 +174,7 @@ public class TestItemUtils {
 			// 2009-01-13 16:33:37
 			DateFormat formatter = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
 			String rd = runDate;
-			rd = rd.replaceAll("&nbsp;", " ");
+			rd = rd.replace(NBSP, " ");
 			Date date = formatter.parse(rd);
 			return date.getTime();
 		} catch (Exception e) {

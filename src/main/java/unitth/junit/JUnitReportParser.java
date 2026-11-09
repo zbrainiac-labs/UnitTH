@@ -68,53 +68,54 @@ public class JUnitReportParser extends SaxReportParser {
 		}
 
 		if (TAG_TESTSUITE.equals(eName)) {
-
-			currentTestModule = new TestModule();
-			if (attrs.getIndex(TAG_TIMESTAMP) != -1) {
-				currentTestModule.setDate(attrs.getValue(TAG_TIMESTAMP));
-			}
-
-			currentTestModule.setNoErrors(attrs.getValue(TAG_ERRORS));
-			currentTestModule.setNoFailures(attrs.getValue(TAG_FAILURES));
-			currentTestModule.setNoIgnored(attrs.getValue(TAG_SKIPPED));
-			currentTestModule.setNoTestCases(attrs.getValue(TAG_TESTS)); // Will be overwritten if the class has been ignored
-			currentTestModule.setExecutionTime(attrs.getValue(TAG_TIME));
-			currentTestModule.setName(attrs.getValue(TAG_NAME));
-
-			if (config.debug()) {
-				System.out.println("The attributes of the testsuite element.");
-				System.out.println("errors: " + attrs.getValue("errors"));
-				System.out.println("failures: " + attrs.getValue("failures"));
-				System.out.println("name: " + attrs.getValue("name"));
-				System.out.println("tests: " + attrs.getValue("tests"));
-				System.out.println("time: " + attrs.getValue("time"));
-				System.out.println("timestamp: " + attrs.getValue("timestamp")
-						+ "\n");
-			}
+			startTestSuite(attrs);
 		} else if (TAG_PROPERTY.equals(eName)) {
 			String str = attrs.getValue(TAG_NAME);
 			if (TAG_LAUNCH_TIMESTAMP.equals(str) && null == currentTestModule.getExecutionDate()) {
 				currentTestModule.setDate(attrs.getValue(TAG_PROPERTY_VALUE));
 			}
 		} else if (TAG_TESTCASE.equals(eName)) {
-			if (!attrs.getValue("name").equalsIgnoreCase("initializationError")) {
-				currentTestCase = new TestCase();
-				currentTestCase.setName(attrs.getValue("name"));
-				// If a class name has not been provided for the test case the
-				// test
-				// module name can be used instead.
-				currentTestCase
-						.setClassName(attrs.getValue("classname") != null ? attrs
-								.getValue("classname")
-								: currentTestModule.getName());
-				currentTestCase.setModuleName(currentTestModule.getName());
-				currentTestCase.setExecutionTime(attrs.getValue("time"));
-			}
+			startTestCase(attrs);
 		} else if (TAG_FAILURE.equals(eName)) {
 			currentTestCase.setVerdict(TestCaseVerdict.e_FAIL);
 		} else if (TAG_ERROR.equals(eName)) {
 			currentTestCase.setVerdict(TestCaseVerdict.e_ERROR);
 		}
+	}
+
+	private void startTestSuite(Attributes attrs) {
+		currentTestModule = new TestModule();
+		if (attrs.getIndex(TAG_TIMESTAMP) != -1) {
+			currentTestModule.setDate(attrs.getValue(TAG_TIMESTAMP));
+		}
+
+		currentTestModule.setNoErrors(attrs.getValue(TAG_ERRORS));
+		currentTestModule.setNoFailures(attrs.getValue(TAG_FAILURES));
+		currentTestModule.setNoIgnored(attrs.getValue(TAG_SKIPPED));
+		currentTestModule.setNoTestCases(attrs.getValue(TAG_TESTS)); // Will be overwritten if the class has been ignored
+		currentTestModule.setExecutionTime(attrs.getValue(TAG_TIME));
+		currentTestModule.setName(attrs.getValue(TAG_NAME));
+
+		if (config.debug()) {
+			Log.out("The attributes of the testsuite element.");
+			for (String tag : new String[] { TAG_ERRORS, TAG_FAILURES, TAG_NAME, TAG_TESTS, TAG_TIME, TAG_TIMESTAMP }) {
+				Log.out(tag + ": " + attrs.getValue(tag));
+			}
+		}
+	}
+
+	private void startTestCase(Attributes attrs) {
+		if (attrs.getValue(TAG_NAME).equalsIgnoreCase("initializationError")) {
+			return;
+		}
+		currentTestCase = new TestCase();
+		currentTestCase.setName(attrs.getValue(TAG_NAME));
+		// If a class name has not been provided for the test case the
+		// test module name can be used instead.
+		String className = attrs.getValue("classname");
+		currentTestCase.setClassName(className != null ? className : currentTestModule.getName());
+		currentTestCase.setModuleName(currentTestModule.getName());
+		currentTestCase.setExecutionTime(attrs.getValue(TAG_TIME));
 	}
 
 	/**
@@ -193,6 +194,9 @@ public class JUnitReportParser extends SaxReportParser {
 				}
 			}
 
+			if (config.skipCommentTests()) {
+				currentTestModule.removeCommentTests();
+			}
 			addToPackage(currentTestModule);
 			if (config.debug()) {
 				System.out.println("Module: " + currentTestModule.getName()
