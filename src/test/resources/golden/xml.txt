@@ -1,4 +1,4 @@
 runs=9
-th-module-zBrainiac_mother-of-all-Projects_SQLValidation.html testcases=21 spread=21
-th-module-zbrainiac-labs_UnknownRepo_SQLValidation.html testcases=5 spread=5
-th-package-not-in-package.html testcases=26 spread=26
+th-module-zBrainiac_mother-of-all-Projects_SQLValidation.html testcases=16 spread=16
+th-module-zbrainiac-labs_UnknownRepo_SQLValidation.html testcases=2 spread=2
+th-package-not-in-package.html testcases=18 spread=18

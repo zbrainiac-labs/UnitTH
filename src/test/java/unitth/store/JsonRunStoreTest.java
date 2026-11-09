@@ -217,6 +217,25 @@ class JsonRunStoreTest {
 	}
 
 	@Test
+	void commentLineCasesAreDroppedOnLoadUnlessDisabled(@TempDir Path tmp) throws IOException {
+		Path file = tmp.resolve("store.json");
+		JsonRunStore store = JsonRunStore.load(file);
+		store.add("id", "r", run("2026-01-02 03:04:05", "ok", "fail", "# section", " "));
+		store.save();
+
+		TestModule tm = JsonRunStore.load(file).toRuns(CONFIG).get(0).getTestModule("org_repo", "org_repo.Suite");
+		assertThat(tm.getTestCases()).containsOnlyKeys("ok", "fail");
+		assertThat(tm.getNoTestCases()).isEqualTo(2);
+		assertThat(tm.getNoFailures()).isEqualTo(1);
+
+		java.util.Properties sys = new java.util.Properties();
+		sys.setProperty(UnitTHConfig.PROP_SKIP_COMMENTS, "false");
+		TestModule raw = JsonRunStore.load(file).toRuns(UnitTHConfig.load(null, null, sys)).get(0)
+				.getTestModule("org_repo", "org_repo.Suite");
+		assertThat(raw.getNoTestCases()).isEqualTo(4);
+	}
+
+	@Test
 	void restoresClassIgnoredModules(@TempDir Path tmp) throws IOException {
 		Path file = tmp.resolve("store.json");
 		TestRun run = run("2026-01-02 03:04:05", "Suite");

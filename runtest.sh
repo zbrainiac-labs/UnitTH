@@ -13,7 +13,7 @@ clean() {
 }
 
 verify() {
-  local label=$1 exp_runs=$2 exp_modules=$3 exp_packages=$4 exp_dates=$5
+  label=$1 exp_runs=$2 exp_modules=$3 exp_packages=$4 exp_dates=$5
 
   RUNS=$(grep -o 'kpi-value accent">[0-9]*' "$REPORT/index.html" | head -1 | grep -o '[0-9]*')
   MODULES=$(ls "$REPORT"/th-module-*.html 2>/dev/null | wc -l | tr -d ' ')

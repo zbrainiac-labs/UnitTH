@@ -72,6 +72,23 @@ class ParserTest {
 	}
 
 	@Test
+	void ctrfDropsCommentLineTests() throws IOException {
+		String commented = "{\"name\": \"setup\", \"status\": \"skipped\", \"duration\": 1, \"message\": \"Commented or empty\"}";
+		File f = write("2026-04-27T182826Z", "TEST_a.json", ctrf("o_r_S",
+				test("# Format: description", "skipped", 1, null) + "," + test("#", "skipped", 1, null) + ","
+						+ test("#", "skipped", 1, null) + "," + commented + ","
+						+ test("t1", "passed", 1000, null) + "," + test("t2", "skipped", 0, null)));
+
+		TestModule m = parse(new CTRFReportParser(config), f).getRuns().first().getTestPackages().get("o_r")
+				.getTestModules().values().iterator().next();
+
+		assertThat(m.getTestCases()).containsOnlyKeys("t1", "t2");
+		assertThat(m.getNoTestCases()).isEqualTo(2);
+		assertThat(m.getNoIgnored()).isEqualTo(1);
+		assertThat(m.getExecutionTimeDouble()).isEqualTo(1.0);
+	}
+
+	@Test
 	void ctrfFallsBackToSuiteThenDefault() throws IOException {
 		File a = write("2026-04-27T110000Z", "TEST_a.json", ctrf(null, test("t1", "passed", 1, "own_Suite")));
 		File b = write("2026-04-27T120000Z", "TEST_b.json", ctrf(null, test("t1", "passed", 1, null)));

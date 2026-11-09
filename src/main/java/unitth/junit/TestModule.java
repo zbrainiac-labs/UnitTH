@@ -161,6 +161,30 @@ public class TestModule extends TestItem implements Comparable<TestModule>, RunC
 		testCases.put(tc.getName(), tc);
 	}
 
+	/** True for SQL comment lines reported as tests (blank name or starting with '#'). */
+	public static boolean isCommentTest(String name) {
+		return name == null || name.isBlank() || name.strip().startsWith("#");
+	}
+
+	/**
+	 * Removes comment-line test cases; if any were removed the counts are
+	 * recomputed from the remaining test cases. Returns true if anything changed.
+	 */
+	public boolean removeCommentTests() {
+		if (!testCases.values().removeIf(tc -> isCommentTest(tc.getName()))) {
+			return false;
+		}
+		noTestCases = testCases.size();
+		noFailures = countVerdict(TestCaseVerdict.e_FAIL);
+		noErrors = countVerdict(TestCaseVerdict.e_ERROR);
+		noIgnored = countVerdict(TestCaseVerdict.e_IGNORED);
+		return true;
+	}
+
+	private int countVerdict(TestCaseVerdict v) {
+		return (int) testCases.values().stream().filter(tc -> tc.getVerdict() == v).count();
+	}
+
 	/**
 	 * Returns the number of test cases in a test module.
 	 * 

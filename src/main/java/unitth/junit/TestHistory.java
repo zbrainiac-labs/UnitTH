@@ -172,46 +172,15 @@ public class TestHistory implements TrendSource {
 				worstRun = passRate;
 			}
 			sumOfPassRates += passRate;
-
-			String timeStamp = tr.getExecutionDate();
-			if (timeStamp == null) {
-				Log.warn("The test run execution date is 'null', this can be an indication that there were no results to be parsed for this run.");
-				continue;
+			if (addToTotals(tr)) {
+				sortedHistory.add(tr);
 			}
-			if (0 > lastRunStr.compareToIgnoreCase(timeStamp)) {
-				lastRunStr = timeStamp;
-			}
-			noExecutedTestCases += tr.getNoTestCases();
-			noPassedTestCases += tr.getNoPassed();
-			noFailedTestCases += tr.getNoFailures();
-			noErrorTestCases += tr.getNoErrors();
-			noIgnoredTestCases += tr.getNoIgnored();
-			execTimeSum += tr.getExecutionTimeDouble();
-			sortedHistory.add(tr);
 		}
 
 		int newest = history.size();
 		int index = sortedHistory.size();
 		for (TestRun tr : sortedHistory) {
-			tr.setRunIdx(index);
-			runsByIdx.put(index, tr);
-			for (TestPackage tp : tr.getTestPackages().values()) {
-				tp.setRunIdx(index);
-				addPackage(tp, index == newest);
-				for (TestModule tm : tp.getTestModules().values()) {
-					tm.setRunIdx(index);
-					addModule(tm, index == newest);
-					for (TestCase tc : tm.getTestCases().values()) {
-						addTestCase(tc, index);
-					}
-				}
-			}
-			largestExecutionTime = Math.max(largestExecutionTime, tr.getExecutionTimeDouble());
-			if (!config.useAbsPaths()) {
-				tr.setRelativePathFromOutputDir(config.rootFolder(), config.reportPath());
-			} else {
-				tr.setAbsolutePath(config.rootFolder(), config.reportPath());
-			}
+			indexRun(tr, index, index == newest);
 			index--;
 		}
 		noUniqueTestCases = testCaseSummaries.size();
@@ -219,6 +188,48 @@ public class TestHistory implements TrendSource {
 
 		TestItemUtils.foldIntoParents(testPackageSummaries, TestPackageSummary::addFrom);
 		history = sortedHistory;
+	}
+
+	/* Adds a run to the totals; runs without an execution date are left out. */
+	private boolean addToTotals(TestRun tr) {
+		String timeStamp = tr.getExecutionDate();
+		if (timeStamp == null) {
+			Log.warn("The test run execution date is 'null', this can be an indication that there were no results to be parsed for this run.");
+			return false;
+		}
+		if (0 > lastRunStr.compareToIgnoreCase(timeStamp)) {
+			lastRunStr = timeStamp;
+		}
+		noExecutedTestCases += tr.getNoTestCases();
+		noPassedTestCases += tr.getNoPassed();
+		noFailedTestCases += tr.getNoFailures();
+		noErrorTestCases += tr.getNoErrors();
+		noIgnoredTestCases += tr.getNoIgnored();
+		execTimeSum += tr.getExecutionTimeDouble();
+		return true;
+	}
+
+	/* Gives a run and its items the run index and adds them to the summaries. */
+	private void indexRun(TestRun tr, int index, boolean newestRun) {
+		tr.setRunIdx(index);
+		runsByIdx.put(index, tr);
+		for (TestPackage tp : tr.getTestPackages().values()) {
+			tp.setRunIdx(index);
+			addPackage(tp, newestRun);
+			for (TestModule tm : tp.getTestModules().values()) {
+				tm.setRunIdx(index);
+				addModule(tm, newestRun);
+				for (TestCase tc : tm.getTestCases().values()) {
+					addTestCase(tc, index);
+				}
+			}
+		}
+		largestExecutionTime = Math.max(largestExecutionTime, tr.getExecutionTimeDouble());
+		if (!config.useAbsPaths()) {
+			tr.setRelativePathFromOutputDir(config.rootFolder(), config.reportPath());
+		} else {
+			tr.setAbsolutePath(config.rootFolder(), config.reportPath());
+		}
 	}
 
 	private void addPackage(TestPackage tp, boolean inNewestRun) {

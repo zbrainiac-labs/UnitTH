@@ -1,0 +1,123 @@
+name: CI
+
+# One workflow for checks and the SonarQube gate. Runs 1:1 on GitHub and
+# locally under act (bash local-ci/act.sh); github.event.act is only set by act.
+#   lint    actionlint + ShellCheck
+#   test    mvn verify (unit tests, ReportE2EIT, JaCoCo) on Java 21; the build
+#           output feeds the sonar job, unitth.jar is kept as an artifact
+#   sonar   test history into the DataOpsBackbone run stores (local-ci/record-history.sh),
+#           Trivy fs, gitleaks, ShellCheck, SonarQube gate (local-ci/sonar-self-scan.sh)
+#           on a DataOpsBackbone self-hosted runner (on sonarnet, token at /sonar)
+# Deployment into the DataOpsBackbone stack is local only (local-ci/deploy.sh):
+# a job must not restart the runner containers it runs on.
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+      - name: Install actionlint + ShellCheck
+        run: |
+          set -Eeuo pipefail
+          case "$(uname -m)" in x86_64) A=amd64; S=x86_64 ;; aarch64|arm64) A=arm64; S=aarch64 ;; esac
+          mkdir -p "$RUNNER_TEMP/bin"
+          curl -sfL "https://github.com/rhysd/actionlint/releases/download/v1.7.12/actionlint_1.7.12_linux_${A}.tar.gz" \
+            | tar -xz -C "$RUNNER_TEMP/bin" actionlint
+          curl -sfL "https://github.com/koalaman/shellcheck/releases/download/v0.11.0/shellcheck-v0.11.0.linux.${S}.tar.xz" \
+            | tar -xJ -C "$RUNNER_TEMP/bin" --strip-components=1 shellcheck-v0.11.0/shellcheck
+          echo "$RUNNER_TEMP/bin" >> "$GITHUB_PATH"
+      - name: actionlint
+        run: actionlint -color=false -shellcheck=
+      - name: ShellCheck
+        run: git ls-files -z '*.sh' | xargs -0 shellcheck --severity=warning
+
+  test:
+    needs: lint
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+      - uses: actions/setup-java@77dd5b2ce225ea11469928ac317850245a74ae78  # v6.2.0
+        with:
+          distribution: temurin
+          java-version: '21'
+          # the GitHub Actions cache service only exists on GitHub
+          cache: ${{ !github.event.act && 'maven' || '' }}
+      - name: mvn verify (unit + E2E + coverage)
+        # Maven wrapper: same pinned Maven on GitHub, under act and locally
+        run: ./mvnw -B -ntp verify dependency:copy-dependencies -DincludeScope=test
+      - name: Upload build output for sonar
+        # act: jobs share the working copy (act.sh --bind), no artifact server needed
+        if: ${{ !github.event.act }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9  # v7.0.2
+        with:
+          name: build
+          path: |
+            target/classes
+            target/test-classes
+            target/dependency
+            target/site/jacoco
+            target/site/jacoco-it
+            target/surefire-reports
+            target/failsafe-reports
+          if-no-files-found: error
+          retention-days: 1
+      - name: Upload unitth.jar
+        if: ${{ !github.event.act }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9  # v7.0.2
+        with:
+          name: unitth-jar
+          path: target/unitth.jar
+          if-no-files-found: error
+
+  sonar:
+    needs: test
+    # self-hosted runners: never run code from a fork pull request
+    if: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository }}
+    # DataOpsBackbone runners: on sonarnet with the sonar-init token at /sonar
+    runs-on: self-hosted
+    timeout-minutes: 20
+    env:
+      # Community Build has no branch analysis, so one project key per stream:
+      # master on GitHub = the official record, PRs and local / act runs stay out of it
+      SONAR_PROJECT_KEY: >-
+        ${{ github.event_name == 'pull_request' && 'unitth-local-pr'
+        || (github.ref == 'refs/heads/master' && !github.event.act) && 'unitth'
+        || 'unitth-local' }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          fetch-depth: 0  # SCM blame for new-code detection, gitleaks history scan
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333  # v8.0.2
+        if: ${{ !github.event.act }}
+        with:
+          name: build
+          path: target
+      # Test results -> run store + shared report (http://localhost:8080), like the
+      # DataOps pipeline does for SQL repos; master and act only, PRs stay out
+      - name: Record test history
+        if: ${{ github.event.act || (github.ref == 'refs/heads/master' && github.event_name != 'pull_request') }}
+        run: bash local-ci/record-history.sh
+      - name: Trivy + gitleaks + ShellCheck + SonarQube quality gate
+        run: bash local-ci/sonar-self-scan.sh
+      - name: Upload issue list
+        if: ${{ always() && !github.event.act }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9  # v7.0.2
+        with:
+          name: sonar-issues
+          path: .sonar-issues.tsv
+          if-no-files-found: ignore

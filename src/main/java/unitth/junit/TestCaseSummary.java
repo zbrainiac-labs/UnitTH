@@ -15,9 +15,11 @@ import unitth.core.UnitTHException;
  */
 public class TestCaseSummary extends TestItemSummary {
 
-	private String storedModuleName = "UNDEF";
-	private String className = "UNDEF";
-	private String tcName = "UNDEF";
+	private static final String UNDEF = "UNDEF";
+
+	private String storedModuleName = UNDEF;
+	private String className = UNDEF;
+	private String tcName = UNDEF;
 
 	/**
 	 * Container for the test case spread. The key is the test run id and the
@@ -168,13 +170,12 @@ public class TestCaseSummary extends TestItemSummary {
 
 	public String getClassPlusTestCaseName(String packageName) {
 		// Ripping everything but the last part of the
-		String strippedClassName = "UNDEF";
 		if (this.className.startsWith(packageName) && !packageName.equals("")
-				&& !packageName.equals("UNDEF")) {
+				&& !packageName.equals(UNDEF)) {
 			if (className.equalsIgnoreCase(packageName)) {
 				return this.tcName;
 			} else {
-				strippedClassName = this.className.replaceFirst(packageName
+				String strippedClassName = this.className.replaceFirst(packageName
 						+ ".", "");
 				return strippedClassName + "." + this.tcName;
 			}

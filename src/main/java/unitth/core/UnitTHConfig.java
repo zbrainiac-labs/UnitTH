@@ -25,6 +25,7 @@ public record UnitTHConfig(
 		boolean debug,
 		int maxRuns,
 		String storeFile,
+		boolean skipCommentTests,
 		List<String> inputArgs) {
 
 	public static final String PROPS_FILENAME = "unitth.properties";
@@ -38,6 +39,7 @@ public record UnitTHConfig(
 	public static final String PROP_DEBUG = "unitth.debug";
 	public static final String PROP_STORE_FILE = "unitth.store.file";
 	public static final String PROP_MAX_RUNS = "unitth.max.runs";
+	public static final String PROP_SKIP_COMMENTS = "unitth.ctrf.skip.comments";
 
 	public static final int DEFAULT_MAX_RUNS = 100;
 
@@ -47,7 +49,7 @@ public record UnitTHConfig(
 
 	public static UnitTHConfig defaults() {
 		return new UnitTHConfig("report.th", ".", false, false, "TEST-", "TEST_",
-				"json", false, DEFAULT_MAX_RUNS, null, List.of());
+				"json", false, DEFAULT_MAX_RUNS, null, true, List.of());
 	}
 
 	/**
@@ -69,6 +71,7 @@ public record UnitTHConfig(
 				"true".equalsIgnoreCase(sys.getProperty(PROP_DEBUG)),
 				intValue(str(PROP_MAX_RUNS, sys, file, null), d.maxRuns()),
 				str(PROP_STORE_FILE, sys, file, d.storeFile()),
+				bool(PROP_SKIP_COMMENTS, sys, file, d.skipCommentTests()),
 				List.of());
 	}
 
@@ -81,17 +84,17 @@ public record UnitTHConfig(
 
 	public UnitTHConfig withMaxRuns(int max) {
 		return new UnitTHConfig(rootFolder, reportPath, generateExecTimeGraphs, useAbsPaths,
-				xmlReportFilter, jsonReportFilter, reportFormat, debug, max, storeFile, inputArgs);
+				xmlReportFilter, jsonReportFilter, reportFormat, debug, max, storeFile, skipCommentTests, inputArgs);
 	}
 
 	public UnitTHConfig withStoreFile(String store) {
 		return new UnitTHConfig(rootFolder, reportPath, generateExecTimeGraphs, useAbsPaths,
-				xmlReportFilter, jsonReportFilter, reportFormat, debug, maxRuns, store, inputArgs);
+				xmlReportFilter, jsonReportFilter, reportFormat, debug, maxRuns, store, skipCommentTests, inputArgs);
 	}
 
 	public UnitTHConfig withInputArgs(List<String> args) {
 		return new UnitTHConfig(rootFolder, reportPath, generateExecTimeGraphs, useAbsPaths,
-				xmlReportFilter, jsonReportFilter, reportFormat, debug, maxRuns, storeFile, args);
+				xmlReportFilter, jsonReportFilter, reportFormat, debug, maxRuns, storeFile, skipCommentTests, args);
 	}
 
 	private static int intValue(String v, int def) {

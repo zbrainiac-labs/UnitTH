@@ -41,7 +41,9 @@ table_rows() {
 # Writes runs, page list and per-page table row counts of the fetched report.
 metrics() {
   echo "runs=$(grep -o 'kpi-value accent">[0-9]*' "$TMP/index.html" | head -1 | grep -o '[0-9]*$')"
-  for f in $(ls "$TMP" | grep '^th-.*\.html$' | sort); do
+  for p in "$TMP"/th-*.html; do
+    [ -e "$p" ] || continue
+    f=$(basename "$p")
     echo "$f testcases=$(table_rows "$TMP/$f" testcase_table) spread=$(table_rows "$TMP/$f" spread_table)"
   done
 }
@@ -119,6 +121,28 @@ else
   pass "no not-in-package"
 fi
 
+echo "=== 5b. Projects ==="
+# One <details class="project"> per package; their run rows add up to all runs
+# (each stored run belongs to exactly one project).
+NPROJ=$(grep -c '<details class="project">' "$TMP/index.html")
+PROJ_RUNS=$(awk '
+  /<details class="project">/ { inproj = 1; header = 1 }
+  inproj && /<tr>/ { if (header) header = 0; else n++ }
+  /<\/details>/ { inproj = 0 }
+  END { print n + 0 }' "$TMP/index.html")
+if [ "$NPROJ" = "$NPKG" ]; then pass "$NPROJ projects"; else fail "$NPROJ projects, expected $NPKG"; fi
+if [ "$PROJ_RUNS" = "$RUNS" ]; then pass "project run rows=$PROJ_RUNS"; else fail "project run rows=$PROJ_RUNS, expected $RUNS"; fi
+if grep -q 'href="#modules"' "$TMP/index.html"; then
+  pass "Modules section shown (some package has several modules)"
+else
+  pass "Modules section hidden (one module per package)"
+fi
+# UnitTH's own history (local-ci/record-history.sh) relies on "project = name before the last dot"
+SELF=zbrainiac-labs_UnitTH
+if grep -q "^[0-9]* $SELF.json\$" "$TMP/stores.txt"; then
+  if grep -q "th-package-$SELF.html" "$TMP/index.html"; then pass "project $SELF shown"; else fail "store $SELF.json exists but project $SELF is missing"; fi
+fi
+
 echo "=== 6. Package pages ==="
 for p in $PKGS; do
   if ! fetch "$p"; then fail "$p not served"; continue; fi
@@ -155,7 +179,8 @@ if grep -l '>null<' "$TMP"/*.html >/dev/null 2>&1; then
 else
   pass "no null cells"
 fi
-NAN=$(grep -l 'NaN' "$TMP"/*.html 2>/dev/null | xargs -n1 basename 2>/dev/null | tr '\n' ' ')
+# NaN as a value (cell, percentage, chart data), not inside test names like ...ForNaN
+NAN=$(grep -lE '>NaN|NaN%|[[,]NaN[],]' "$TMP"/*.html 2>/dev/null | xargs -n1 basename 2>/dev/null | tr '\n' ' ')
 if [ -n "$NAN" ]; then fail "NaN in: $NAN"; else pass "no NaN"; fi
 
 echo "=== 10. Metrics ==="
