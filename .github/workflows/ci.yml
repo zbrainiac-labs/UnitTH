@@ -1,4 +1,4 @@
-name: CI
+name: CI / Deploy
 
 # One workflow for checks and the SonarQube gate. Runs 1:1 on GitHub and
 # locally under act (bash local-ci/act.sh); github.event.act is only set by act.
